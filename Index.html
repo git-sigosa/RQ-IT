@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formulario de Requerimientos de Infraestructura</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#ffffff; --panel-alt:#f8fafc; --line:#e2e8f0;
+    --ink:#0f172a; --muted:#64748b; --brand:#2563eb; --brand-dark:#1d4ed8;
+    --brand-soft:#eff6ff; --ok:#16a34a; --ok-soft:#f0fdf4; --warn:#b45309;
+    --danger:#dc2626; --danger-soft:#fef2f2; --radius:12px;
+    --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(180deg,#eef2f7 0%,#e8edf4 100%);
+    color:var(--ink); line-height:1.5; font-size:15px;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:24px 20px 140px}
+
+  /* Header */
+  header.app{
+    background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 55%,#3b82f6 100%);
+    color:#fff;border-radius:16px;padding:26px 28px;box-shadow:var(--shadow);
+    position:relative;overflow:hidden;
+  }
+  header.app h1{margin:0 0 6px;font-size:22px;font-weight:700;letter-spacing:.2px}
+  header.app p{margin:0;opacity:.9;font-size:14px;max-width:640px}
+  header.app .chip{
+    display:inline-block;margin-top:14px;background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.25);padding:5px 12px;border-radius:999px;
+    font-size:12px;font-weight:600;letter-spacing:.3px;
+  }
+
+  /* Progress nav */
+  nav.steps{
+    position:sticky;top:0;z-index:20;background:rgba(248,250,252,.92);
+    backdrop-filter:blur(6px);margin:16px -20px 0;padding:12px 20px;
+    border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;
+  }
+  nav.steps a{
+    text-decoration:none;color:var(--muted);font-size:12.5px;font-weight:600;
+    padding:7px 12px;border-radius:999px;border:1px solid var(--line);
+    background:#fff;white-space:nowrap;transition:.15s;
+  }
+  nav.steps a:hover{border-color:var(--brand);color:var(--brand)}
+  nav.steps a.done{color:var(--ok);border-color:#bbf7d0;background:var(--ok-soft)}
+
+  /* Sections */
+  section.card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);margin-top:18px;overflow:hidden;
+  }
+  section.card > .head{
+    display:flex;align-items:center;gap:12px;padding:16px 20px;
+    border-bottom:1px solid var(--line);background:var(--panel-alt);
+  }
+  section.card > .head .num{
+    flex:0 0 auto;width:30px;height:30px;border-radius:8px;background:var(--brand);
+    color:#fff;font-weight:700;display:grid;place-items:center;font-size:14px;
+  }
+  section.card > .head h2{margin:0;font-size:16px;font-weight:700}
+  section.card > .head p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+  section.card > .body{padding:20px}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .grid .full{grid-column:1/-1}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+
+  label.field{display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:6px}
+  label.field .req{color:var(--danger);margin-left:2px}
+  label.field .hint{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;
+    font:inherit;color:var(--ink);background:#fff;transition:.15s;
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.15);
+  }
+  textarea{resize:vertical;min-height:70px}
+  input.invalid,select.invalid{border-color:var(--danger);box-shadow:0 0 0 3px rgba(220,38,38,.12)}
+  .err-msg{color:var(--danger);font-size:12px;margin-top:4px;display:none}
+  .err-msg.show{display:block}
+
+  /* Services table */
+  .svc-table{width:100%;border-collapse:collapse;margin-top:4px}
+  .svc-table th{
+    text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line);
+  }
+  .svc-table td{padding:6px 6px;vertical-align:top}
+  .svc-table input,.svc-table select{padding:8px 9px;font-size:13px}
+  .svc-table .del{
+    background:var(--danger-soft);color:var(--danger);border:1px solid #fecaca;
+    border-radius:8px;width:34px;height:36px;cursor:pointer;font-size:16px;line-height:1;
+  }
+  .svc-table .del:hover{background:#fee2e2}
+  .svc-wrap{overflow-x:auto}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);
+    background:#fff;color:var(--ink);padding:9px 14px;border-radius:9px;
+    font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{border-color:var(--brand);color:var(--brand)}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.primary:hover{background:var(--brand-dark);color:#fff}
+  .btn.ghost-add{border-style:dashed;color:var(--brand);border-color:#bfdbfe;background:var(--brand-soft)}
+  .btn.sm{padding:6px 11px;font-size:12.5px}
+
+  /* Tags (secrets) */
+  .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .tag{
+    display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;border:1px solid var(--line);
+    border-radius:999px;padding:5px 8px 5px 12px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace;
+  }
+  .tag button{border:none;background:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0 2px}
+  .tag button:hover{color:var(--danger)}
+  .tag-input-row{display:flex;gap:8px;margin-top:8px}
+  .tag-input-row input{flex:1}
+
+  /* conditional blocks */
+  .toggle-block{border:1px dashed var(--line);border-radius:10px;padding:14px;background:var(--panel-alt);margin-top:6px}
+  .toggle-head{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px}
+  .switch{position:relative;display:inline-block;width:42px;height:24px;flex:0 0 auto}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s;cursor:pointer}
+  .slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .switch input:checked + .slider{background:var(--brand)}
+  .switch input:checked + .slider:before{transform:translateX(18px)}
+  .cond-fields{margin-top:14px;display:none}
+  .cond-fields.show{display:block}
+
+  /* capacity summary */
+  .cap-panel{background:var(--brand-soft);border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:16px}
+  .cap-panel h3{margin:0 0 10px;font-size:13px;color:var(--brand-dark);text-transform:uppercase;letter-spacing:.5px}
+  .cap-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:680px){.cap-grid{grid-template-columns:repeat(2,1fr)}}
+  .cap-tile{background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+  .cap-tile .v{font-size:20px;font-weight:700;color:var(--ink)}
+  .cap-tile .k{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+  /* Footer action bar */
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(255,255,255,.97);
+    backdrop-filter:blur(8px);border-top:1px solid var(--line);
+    box-shadow:0 -4px 20px rgba(15,23,42,.08);
+  }
+  .actionbar .inner{max-width:1000px;margin:0 auto;padding:12px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .actionbar .status{font-size:12.5px;color:var(--muted);margin-right:auto}
+  .actionbar .status.ok{color:var(--ok)}
+  .actionbar .status.err{color:var(--danger)}
+
+  /* Modal / output */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;z-index:50;align-items:center;justify-content:center;padding:20px}
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .modal .m-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff}
+  .modal .m-head h2{margin:0;font-size:16px}
+  .modal .m-body{padding:20px}
+  .modal pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;overflow:auto;font-size:12.5px;line-height:1.5;max-height:300px}
+  .tabbar{display:flex;gap:6px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+  .tabbar button{border:none;background:none;padding:9px 12px;font:inherit;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+  .tabbar button.active{color:var(--brand);border-bottom-color:var(--brand)}
+  .tabpane{display:none}.tabpane.active{display:block}
+  .note{font-size:12.5px;color:var(--muted);background:var(--panel-alt);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-top:10px}
+  .webhook-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .webhook-row input{flex:1;min-width:220px}
+  .x{border:none;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:18px;color:var(--muted)}
+  .x:hover{background:#e2e8f0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <h1>Formulario de Requerimientos de Infraestructura</h1>
+    <p>Documenta e identifica los requerimientos de infraestructura para el desarrollo y pase a producción de aplicaciones satélite. Cada solicitud completada se registra en la lista <strong>Solicitudes Infraestructura</strong> de SharePoint.</p>
+    <span class="chip">Proyectos IT · Sigosa</span>
+  </header>
+
+  <nav class="steps" id="stepnav">
+    <a href="#sec1">1 · General</a>
+    <a href="#sec2">2 · Cómputo</a>
+    <a href="#sec3">3 · Base de Datos</a>
+    <a href="#sec4">4 · Redes y APIs</a>
+    <a href="#sec5">5 · Seguridad</a>
+    <a href="#sec6">6 · Clasificación</a>
+  </nav>
+
+  <form id="reqForm" novalidate>
+
+    <!-- SECCIÓN 1 -->
+    <section class="card" id="sec1">
+      <div class="head"><div class="num">1</div><div><h2>Información General del Proyecto</h2><p>Identificación de la aplicación y responsable.</p></div></div>
+      <div class="body">
+        <div class="grid">
+          <div>
+            <label class="field" for="nombre_aplicacion">Nombre de la Aplicación Satélite<span class="req">*</span></label>
+            <input type="text" id="nombre_aplicacion" data-req placeholder="Ej. Portal de Proveedores">
+            <div class="err-msg">Este campo es obligatorio.</div>
+          </div>
+          <div>
+            <label class="field" for="identificador">Código / Identificador Corto<span class="req">*</span></label>
+            <input type="text" id="identificador" data-req placeholder="APP-SAT-01">
+            <div class="err-msg">Este campo es obligatorio.</div>
+          </div>
+          <div>
+            <label class="field" for="proyecto">Proyecto</label>
+            <input type="text" id="proyecto" placeholder="Nombre del proyecto o iniciativa">
+          </div>
+          <div>
+            <label class="field" for="lider_tecnico">Líder del Proyecto / Responsable Técnico<span class="req">*</span></label>
+            <input type="text" id="lider_tecnico" data-req placeholder="Nombre y apellido">
+            <div class="err-msg">Este campo es obligatorio.</div>
+          </div>
+          <div>
+            <label class="field" for="fecha_produccion">Fecha Objetivo de Pase a Producción<span class="req">*</span></label>
+            <input type="date" id="fecha_produccion" data-req>
+            <div class="err-msg">Este campo es obligatorio.</div>
+          </div>
+          <div class="full">
+            <label class="field" for="descripcion">Propósito y Descripción Breve <span class="hint">También se registra como “Funcionalidad” en SharePoint.</span></label>
+            <textarea id="descripcion" placeholder="¿Qué hace la aplicación y para qué se necesita?"></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 2 -->
+    <section class="card" id="sec2">
+      <div class="head"><div class="num">2</div><div><h2>Requerimientos de Cómputo y Contenedores</h2><p>Arquitectura, servicios y escalabilidad. El CPU/RAM total se calcula automáticamente.</p></div></div>
+      <div class="body">
+        <div class="cap-panel">
+          <h3>Resumen de capacidad (automático)</h3>
+          <div class="cap-grid">
+            <div class="cap-tile"><div class="v" id="cap_servicios">0</div><div class="k">Servicios</div></div>
+            <div class="cap-tile"><div class="v" id="cap_cpu">0</div><div class="k">vCPU total</div></div>
+            <div class="cap-tile"><div class="v" id="cap_ram">0</div><div class="k">RAM total (GB)</div></div>
+            <div class="cap-tile"><div class="v" id="cap_storage">0</div><div class="k">Storage (GB)</div></div>
+          </div>
+        </div>
+        <div class="grid">
+          <div>
+            <label class="field" for="arquitectura_despliegue">Arquitectura de Despliegue</label>
+            <select id="arquitectura_despliegue">
+              <option value="">— Selecciona —</option>
+              <option>Docker</option><option>Kubernetes</option><option>VM Dedicada</option>
+              <option>AWS ECS</option><option>Azure App Service</option><option>Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="field" style="margin-top:18px">Estructura de Servicios / Contenedores <span class="hint">El rol Front-End / Back-End alimenta las columnas FrontEnd y BackendAPI de SharePoint.</span></label>
+        <div class="svc-wrap">
+          <table class="svc-table" id="svcTable">
+            <thead>
+              <tr>
+                <th style="min-width:150px">Nombre del servicio</th>
+                <th style="min-width:130px">Rol</th>
+                <th style="min-width:150px">Lenguaje / Framework</th>
+                <th style="min-width:100px">Puerto</th>
+                <th style="min-width:90px">vCPU</th>
+                <th style="min-width:100px">RAM (GB)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="svcBody"></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn ghost-add sm" id="addSvc" style="margin-top:10px">＋ Agregar servicio</button>
+
+        <div class="grid" style="margin-top:20px">
+          <div>
+            <label class="field">Escalabilidad</label>
+            <select id="esc_tipo">
+              <option value="Estática">Estática</option>
+              <option value="Auto Escalado (HPA)">Auto Escalado (HPA)</option>
+            </select>
+          </div>
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="field" for="esc_min">Instancias mín.</label>
+              <input type="number" id="esc_min" min="1" value="1">
+            </div>
+            <div>
+              <label class="field" for="esc_max">Instancias máx.</label>
+              <input type="number" id="esc_max" min="1" value="3">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 3 -->
+    <section class="card" id="sec3">
+      <div class="head"><div class="num">3</div><div><h2>Base de Datos y Persistencia</h2><p>Motor, dimensionamiento y secrets requeridos.</p></div></div>
+      <div class="body">
+        <div class="grid">
+          <div>
+            <label class="field" for="motor_bd">Motor de Base de Datos Solicitado<span class="req">*</span></label>
+            <select id="motor_bd" data-req>
+              <option value="">— Selecciona —</option>
+              <option>SQL Server 2019</option><option>SQL Server 2022</option><option>PostgreSQL</option>
+              <option>MySQL / MariaDB</option><option>MongoDB</option><option>Otro</option>
+            </select>
+            <div class="err-msg">Este campo es obligatorio.</div>
+          </div>
+          <div>
+            <label class="field" for="modelo_despliegue">Modelo de Despliegue de BD</label>
+            <select id="modelo_despliegue">
+              <option value="">— Selecciona —</option>
+              <option>Servidor / Instancia Dedicada</option>
+              <option>Servidor Compartido</option>
+              <option>Contenedor</option>
+            </select>
+          </div>
+          <div>
+            <label class="field" for="almacenamiento_inicial_gb">Almacenamiento Inicial Estimado (GB)<span class="req">*</span></label>
+            <input type="number" id="almacenamiento_inicial_gb" data-req min="0" step="any" placeholder="Ej. 50">
+            <div class="err-msg">Este campo es obligatorio.</div>
+          </div>
+          <div>
+            <label class="field" for="crecimiento_mensual_gb">Crecimiento Mensual Estimado (GB)</label>
+            <input type="number" id="crecimiento_mensual_gb" min="0" step="any" placeholder="Ej. 5">
+          </div>
+          <div class="full">
+            <label class="field" for="retencion_backups">Estrategia y Retención de Backups</label>
+            <input type="text" id="retencion_backups" value="Diario / Retención 30 días">
+          </div>
+        </div>
+
+        <label class="field" style="margin-top:18px">Nombres de Variables / Secrets Requeridos <span class="hint">Escribe el nombre y presiona Enter o “Agregar”. Solo nombres, nunca valores reales.</span></label>
+        <div class="tags" id="secretTags"></div>
+        <div class="tag-input-row">
+          <input type="text" id="secretInput" placeholder="Ej. DB_HOST, JWT_SECRET">
+          <button type="button" class="btn sm" id="addSecret">Agregar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 4 -->
+    <section class="card" id="sec4">
+      <div class="head"><div class="num">4</div><div><h2>Redes, Dominios y Definición de APIs</h2><p>Exposición, integraciones entrantes y salientes.</p></div></div>
+      <div class="body">
+        <div class="grid">
+          <div>
+            <label class="field" for="dominio_publico">Dominio / Subdominio Público Solicitado</label>
+            <input type="text" id="dominio_publico" placeholder="satelite.sigosa.com">
+          </div>
+          <div>
+            <label class="field" for="tipo_acceso">Acceso / Exposición Requerida</label>
+            <select id="tipo_acceso">
+              <option value="">— Selecciona —</option>
+              <option>Público (Internet / WAF)</option>
+              <option>Restringido (VPN Corporativa)</option>
+              <option>Red Interna Solamente (VPC)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- consumo apis externas -->
+        <div class="toggle-block" style="margin-top:16px">
+          <div class="toggle-head">
+            <label class="switch"><input type="checkbox" id="consumo_req"><span class="slider"></span></label>
+            <span>Consumo de APIs Externas <span class="hint" style="display:inline;font-weight:400">— la app consume otros sistemas</span></span>
+          </div>
+          <div class="cond-fields" id="consumo_fields">
+            <div class="grid">
+              <div>
+                <label class="field" for="consumo_sistema">Sistema Destino / ERP</label>
+                <input type="text" id="consumo_sistema" placeholder="Ej. SAP, Dynamics">
+              </div>
+              <div>
+                <label class="field" for="consumo_protocolo">Protocolo</label>
+                <select id="consumo_protocolo"><option value="">—</option><option>REST</option><option>SOAP</option><option>GraphQL</option><option>Webhook</option></select>
+              </div>
+              <div>
+                <label class="field" for="consumo_auth">Autenticación</label>
+                <select id="consumo_auth"><option value="">—</option><option>API Key</option><option>OAuth2</option><option>Basic Auth</option><option>Ninguna</option></select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- exposicion apis propias -->
+        <div class="toggle-block" style="margin-top:14px">
+          <div class="toggle-head">
+            <label class="switch"><input type="checkbox" id="expo_req"><span class="slider"></span></label>
+            <span>Exposición de APIs Propias <span class="hint" style="display:inline;font-weight:400">— otros consumen a esta app</span></span>
+          </div>
+          <div class="cond-fields" id="expo_fields">
+            <div class="grid">
+              <div>
+                <label class="field" for="expo_ruta">Ruta Base / Contexto</label>
+                <input type="text" id="expo_ruta" placeholder="/api/v1/">
+              </div>
+              <div>
+                <label class="field" for="expo_seguridad">Mecanismo de Seguridad</label>
+                <select id="expo_seguridad"><option value="">—</option><option>Bearer Token (JWT)</option><option>API Key</option><option>IP Whitelisting</option></select>
+              </div>
+              <div>
+                <label class="field" for="expo_doc">Documentación</label>
+                <select id="expo_doc"><option value="">—</option><option>Swagger / OpenAPI</option><option>Postman Collection</option><option>Ninguna</option></select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 5 -->
+    <section class="card" id="sec5">
+      <div class="head"><div class="num">5</div><div><h2>Seguridad y Monitoreo</h2><p>Autenticación, sensibilidad de datos y healthcheck.</p></div></div>
+      <div class="body">
+        <div class="grid">
+          <div>
+            <label class="field" for="metodo_autenticacion">Método de Autenticación</label>
+            <select id="metodo_autenticacion">
+              <option value="">— Selecciona —</option>
+              <option>OAuth2 / Azure AD (Entra ID)</option>
+              <option>JWT / Claves API</option>
+              <option>Autenticación Nativa de la App</option>
+              <option>Sin Autenticación</option>
+            </select>
+          </div>
+          <div>
+            <label class="field" for="nivel_sensibilidad">Sensibilidad de los Datos</label>
+            <select id="nivel_sensibilidad">
+              <option value="">— Selecciona —</option>
+              <option>Público</option>
+              <option>Interno</option>
+              <option>Confidencial / Financiero / PII</option>
+            </select>
+          </div>
+          <div class="full">
+            <label class="field" for="endpoint_healthcheck">Endpoint de Healthcheck</label>
+            <input type="text" id="endpoint_healthcheck" value="/api/v1/health">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 6 -->
+    <section class="card" id="sec6">
+      <div class="head"><div class="num">6</div><div><h2>Clasificación y Registro</h2><p>Campos de gestión que completan el registro en SharePoint.</p></div></div>
+      <div class="body">
+        <div class="grid">
+          <div>
+            <label class="field" for="ambiente">Ambiente</label>
+            <select id="ambiente">
+              <option value="">— Selecciona —</option>
+              <option>Producción</option><option>QA / Pruebas</option><option>Desarrollo</option><option>Múltiple</option>
+            </select>
+          </div>
+          <div>
+            <label class="field" for="usuarios_concurrentes">Usuarios Concurrentes Estimados</label>
+            <input type="number" id="usuarios_concurrentes" min="0" placeholder="Ej. 50">
+          </div>
+          <div>
+            <label class="field" for="criticidad">Criticidad</label>
+            <select id="criticidad">
+              <option value="">— Selecciona —</option>
+              <option>Alta</option><option>Media</option><option>Baja</option>
+            </select>
+          </div>
+          <div>
+            <label class="field" for="estado">Estado de la Solicitud</label>
+            <select id="estado">
+              <option>Nuevo</option><option>En revisión</option><option>Aprobado</option>
+              <option>En provisión</option><option>Completado</option><option>Rechazado</option>
+            </select>
+          </div>
+          <div>
+            <label class="field" for="requiere_ha">¿Requiere Alta Disponibilidad (HA)?</label>
+            <select id="requiere_ha"><option>No</option><option>Sí</option></select>
+          </div>
+          <div>
+            <label class="field" for="requiere_dr">¿Requiere Recuperación ante Desastres (DR)?</label>
+            <select id="requiere_dr"><option>No</option><option>Sí</option></select>
+          </div>
+        </div>
+      </div>
+    </section>
+  </form>
+</div>
+
+<!-- ACTION BAR -->
+<div class="actionbar">
+  <div class="inner">
+    <span class="status" id="statusBar">Completa el formulario y genera la solicitud.</span>
+    <button type="button" class="btn" id="btnReset">Limpiar</button>
+    <button type="button" class="btn" id="btnJson">⬇ Descargar JSON</button>
+    <button type="button" class="btn primary" id="btnGenerate">Generar solicitud →</button>
+  </div>
+</div>
+
+<!-- OUTPUT MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="m-head">
+      <h2>Solicitud generada</h2>
+      <button class="x" id="closeModal" title="Cerrar">×</button>
+    </div>
+    <div class="m-body">
+      <div class="tabbar">
+        <button class="tab-btn active" data-tab="sp">Guardar en SharePoint</button>
+        <button class="tab-btn" data-tab="json">JSON completo</button>
+      </div>
+
+      <div class="tabpane active" id="pane-sp">
+        <p style="margin:0 0 8px;font-size:13.5px">Fila lista para pegar en la lista <strong>Solicitudes Infraestructura</strong>. Copia y pega directamente en la <em>vista de cuadrícula</em>.</p>
+        <button type="button" class="btn primary sm" id="copyRow">📋 Copiar fila (TSV)</button>
+        <pre id="rowOut" style="margin-top:10px;white-space:pre-wrap"></pre>
+        <div class="note">
+          <strong>Cómo pegar en SharePoint:</strong> abre la lista → botón <strong>“Editar en vista de cuadrícula”</strong> → haz clic en la primera celda de una fila nueva (columna <em>Título</em>) → pega (Ctrl+V). Las 17 columnas se llenan en orden.
+        </div>
+        <div style="margin-top:16px">
+          <label class="field">Envío automático (opcional) — Power Automate</label>
+          <p style="font-size:12.5px;color:#64748b;margin:0 0 6px">Si tienes un flujo con disparador “Cuando se recibe una solicitud HTTP”, pega su URL y envía el JSON directo a la lista.</p>
+          <div class="webhook-row">
+            <input type="text" id="webhookUrl" placeholder="https://prod-XX.westus.logic.azure.com/workflows/...">
+            <button type="button" class="btn sm" id="sendWebhook">Enviar</button>
+          </div>
+          <span class="status" id="whStatus" style="font-size:12px"></span>
+        </div>
+      </div>
+
+      <div class="tabpane" id="pane-json">
+        <p style="margin:0 0 8px;font-size:13.5px">Registro estructurado completo (conforme al esquema).</p>
+        <button type="button" class="btn sm" id="copyJson">📋 Copiar JSON</button>
+        <button type="button" class="btn sm" id="dlJson2">⬇ Descargar</button>
+        <pre id="jsonOut" style="margin-top:10px"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var secrets = [];
+
+  /* ---------- Services ---------- */
+  var svcBody = document.getElementById('svcBody');
+  function svcRow(data){
+    data = data || {};
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="text" class="s-nombre" placeholder="API / Web / Worker"></td>'+
+      '<td><select class="s-rol"><option>Front-End</option><option>Back-End (API)</option><option>Worker / Proceso</option><option>Base de Datos</option><option>Otro</option></select></td>'+
+      '<td><input type="text" class="s-lang" placeholder="Ej. .NET 8, React, Node"></td>'+
+      '<td><input type="number" class="s-port" placeholder="8080" min="0"></td>'+
+      '<td><input type="number" class="s-cpu" placeholder="0.5" min="0" step="any"></td>'+
+      '<td><input type="number" class="s-ram" placeholder="1" min="0" step="any"></td>'+
+      '<td><button type="button" class="del" title="Eliminar">×</button></td>';
+    svcBody.appendChild(tr);
+    tr.querySelector('.del').addEventListener('click', function(){ tr.remove(); recalc(); });
+    ['.s-cpu','.s-ram','.s-rol'].forEach(function(sel){
+      tr.querySelector(sel).addEventListener('input', recalc);
+    });
+    if(data.rol){ tr.querySelector('.s-rol').value = data.rol; }
+    return tr;
+  }
+  document.getElementById('addSvc').addEventListener('click', function(){ svcRow(); });
+  svcRow({rol:'Front-End'}); svcRow({rol:'Back-End (API)'});
+
+  function num(v){ var n = parseFloat(v); return isNaN(n)?0:n; }
+
+  function collectServices(){
+    return Array.prototype.map.call(svcBody.querySelectorAll('tr'), function(tr){
+      return {
+        nombre_servicio: tr.querySelector('.s-nombre').value.trim(),
+        rol: tr.querySelector('.s-rol').value,
+        lenguaje_framework: tr.querySelector('.s-lang').value.trim(),
+        puerto_interno: tr.querySelector('.s-port').value ? parseInt(tr.querySelector('.s-port').value,10) : null,
+        cpu_estimada: tr.querySelector('.s-cpu').value.trim(),
+        ram_estimada: tr.querySelector('.s-ram').value.trim()
+      };
+    }).filter(function(s){ return s.nombre_servicio || s.lenguaje_framework || s.cpu_estimada || s.ram_estimada; });
+  }
+
+  function recalc(){
+    var svcs = collectServices();
+    var cpu=0, ram=0;
+    svcs.forEach(function(s){ cpu += num(s.cpu_estimada); ram += num(s.ram_estimada); });
+    var storage = num(document.getElementById('almacenamiento_inicial_gb').value);
+    document.getElementById('cap_servicios').textContent = svcs.length;
+    document.getElementById('cap_cpu').textContent = Math.round(cpu*100)/100;
+    document.getElementById('cap_ram').textContent = Math.round(ram*100)/100;
+    document.getElementById('cap_storage').textContent = Math.round(storage*100)/100;
+  }
+  document.getElementById('almacenamiento_inicial_gb').addEventListener('input', recalc);
+
+  /* ---------- Secrets tags ---------- */
+  function renderSecrets(){
+    var box = document.getElementById('secretTags');
+    box.innerHTML = '';
+    secrets.forEach(function(s, i){
+      var span = document.createElement('span');
+      span.className = 'tag';
+      span.appendChild(document.createTextNode(s));
+      var b = document.createElement('button'); b.type='button'; b.textContent='×';
+      b.addEventListener('click', function(){ secrets.splice(i,1); renderSecrets(); });
+      span.appendChild(b);
+      box.appendChild(span);
+    });
+  }
+  function addSecretFromInput(){
+    var inp = document.getElementById('secretInput');
+    var raw = inp.value.trim();
+    if(!raw) return;
+    raw.split(',').forEach(function(part){
+      var v = part.trim();
+      if(v && secrets.indexOf(v)===-1) secrets.push(v);
+    });
+    inp.value=''; renderSecrets();
+  }
+  document.getElementById('addSecret').addEventListener('click', addSecretFromInput);
+  document.getElementById('secretInput').addEventListener('keydown', function(e){
+    if(e.key==='Enter'){ e.preventDefault(); addSecretFromInput(); }
+  });
+
+  /* ---------- Conditional toggles ---------- */
+  function bindToggle(cb, fields){
+    document.getElementById(cb).addEventListener('change', function(){
+      document.getElementById(fields).classList.toggle('show', this.checked);
+    });
+  }
+  bindToggle('consumo_req','consumo_fields');
+  bindToggle('expo_req','expo_fields');
+
+  /* ---------- Validation ---------- */
+  function validate(){
+    var ok = true, first = null;
+    document.querySelectorAll('[data-req]').forEach(function(el){
+      var empty = !el.value || !el.value.trim();
+      el.classList.toggle('invalid', empty);
+      var msg = el.parentElement.querySelector('.err-msg');
+      if(msg) msg.classList.toggle('show', empty);
+      if(empty){ ok=false; if(!first) first=el; }
+    });
+    if(first){ first.scrollIntoView({behavior:'smooth',block:'center'}); first.focus({preventScroll:true}); }
+    return ok;
+  }
+  document.querySelectorAll('[data-req]').forEach(function(el){
+    el.addEventListener('input', function(){
+      if(el.value && el.value.trim()){
+        el.classList.remove('invalid');
+        var m = el.parentElement.querySelector('.err-msg'); if(m) m.classList.remove('show');
+      }
+    });
+  });
+
+  /* ---------- Build data ---------- */
+  function val(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
+  function frameworksByRole(svcs, role){
+    return svcs.filter(function(s){ return s.rol===role; })
+               .map(function(s){ return s.lenguaje_framework || s.nombre_servicio; })
+               .filter(Boolean).join(', ');
+  }
+
+  function buildModel(){
+    var svcs = collectServices();
+    var cpu=0, ram=0;
+    svcs.forEach(function(s){ cpu+=num(s.cpu_estimada); ram+=num(s.ram_estimada); });
+    cpu = Math.round(cpu*100)/100; ram = Math.round(ram*100)/100;
+
+    var model = {
+      informacion_general:{
+        nombre_aplicacion: val('nombre_aplicacion'),
+        identificador: val('identificador'),
+        proyecto: val('proyecto'),
+        lider_tecnico: val('lider_tecnico'),
+        fecha_produccion: val('fecha_produccion'),
+        descripcion: val('descripcion')
+      },
+      computo_y_contenedores:{
+        arquitectura_despliegue: val('arquitectura_despliegue'),
+        servicios: svcs,
+        escalabilidad:{
+          tipo: val('esc_tipo'),
+          instancias_min: parseInt(val('esc_min')||'1',10),
+          instancias_max: parseInt(val('esc_max')||'1',10)
+        },
+        cpu_total_vcpu: cpu,
+        ram_total_gb: ram
+      },
+      base_de_datos:{
+        motor_bd: val('motor_bd'),
+        modelo_despliegue: val('modelo_despliegue'),
+        almacenamiento_inicial_gb: num(val('almacenamiento_inicial_gb')),
+        crecimiento_mensual_gb: num(val('crecimiento_mensual_gb')),
+        retencion_backups: val('retencion_backups'),
+        variables_entorno_keys: secrets.slice()
+      },
+      redes_y_apis:{
+        dominio_publico: val('dominio_publico'),
+        tipo_acceso: val('tipo_acceso'),
+        consumo_apis_externas:{
+          requiere: document.getElementById('consumo_req').checked,
+          sistema_destino: val('consumo_sistema'),
+          protocolo: val('consumo_protocolo'),
+          autenticacion: val('consumo_auth')
+        },
+        exposicion_apis_propias:{
+          requiere: document.getElementById('expo_req').checked,
+          ruta_base: val('expo_ruta'),
+          mecanismo_seguridad: val('expo_seguridad'),
+          documentacion: val('expo_doc')
+        }
+      },
+      seguridad_y_monitoreo:{
+        metodo_autenticacion_usuarios: val('metodo_autenticacion'),
+        nivel_sensibilidad_datos: val('nivel_sensibilidad'),
+        endpoint_healthcheck: val('endpoint_healthcheck')
+      },
+      clasificacion_registro:{
+        ambiente: val('ambiente'),
+        usuarios_concurrentes: val('usuarios_concurrentes') ? parseInt(val('usuarios_concurrentes'),10) : null,
+        criticidad: val('criticidad'),
+        requiere_ha: val('requiere_ha'),
+        requiere_dr: val('requiere_dr'),
+        estado: val('estado')
+      }
+    };
+    return model;
+  }
+
+  var SP_COLUMNS = ["Título","Proyecto","Aplicación","Funcionalidad","LíderProyecto","FrontEnd","BackendAPI","BaseDatos","Ambiente","UsuariosConcurrentes","CPURequerida","RAMRequeridaGB","StorageGB","Criticidad","RequiereHA","RequiereDR","Estado"];
+
+  function buildSharePointRow(m){
+    var svcs = m.computo_y_contenedores.servicios;
+    var ig = m.informacion_general, cr = m.clasificacion_registro;
+    var titulo = ig.identificador ? (ig.identificador + ' – ' + ig.nombre_aplicacion) : ig.nombre_aplicacion;
+    return {
+      "Título": titulo,
+      "Proyecto": ig.proyecto,
+      "Aplicación": ig.nombre_aplicacion,
+      "Funcionalidad": ig.descripcion,
+      "LíderProyecto": ig.lider_tecnico,
+      "FrontEnd": frameworksByRole(svcs,'Front-End'),
+      "BackendAPI": frameworksByRole(svcs,'Back-End (API)'),
+      "BaseDatos": m.base_de_datos.motor_bd,
+      "Ambiente": cr.ambiente,
+      "UsuariosConcurrentes": cr.usuarios_concurrentes==null?'':cr.usuarios_concurrentes,
+      "CPURequerida": m.computo_y_contenedores.cpu_total_vcpu,
+      "RAMRequeridaGB": m.computo_y_contenedores.ram_total_gb,
+      "StorageGB": m.base_de_datos.almacenamiento_inicial_gb,
+      "Criticidad": cr.criticidad,
+      "RequiereHA": cr.requiere_ha,
+      "RequiereDR": cr.requiere_dr,
+      "Estado": cr.estado
+    };
+  }
+
+  function rowToTSV(rowObj){
+    return SP_COLUMNS.map(function(c){
+      var v = rowObj[c]; if(v==null) v='';
+      return String(v).replace(/\t/g,' ').replace(/\r?\n/g,' ');
+    }).join('\t');
+  }
+
+  /* ---------- Outputs ---------- */
+  var lastModel = null;
+  function setStatus(msg, cls){
+    var s = document.getElementById('statusBar');
+    s.textContent = msg; s.className = 'status' + (cls?(' '+cls):'');
+  }
+
+  function openModal(m){
+    var row = buildSharePointRow(m);
+    var header = SP_COLUMNS.join('\t');
+    var tsv = rowToTSV(row);
+    document.getElementById('rowOut').textContent = header + '\n' + tsv;
+    document.getElementById('rowOut').dataset.tsv = tsv;
+    document.getElementById('jsonOut').textContent = JSON.stringify(m, null, 2);
+    document.getElementById('modal').classList.add('show');
+  }
+
+  document.getElementById('btnGenerate').addEventListener('click', function(){
+    if(!validate()){ setStatus('Faltan campos obligatorios (marcados en rojo).', 'err'); return; }
+    lastModel = buildModel();
+    setStatus('Solicitud generada correctamente.', 'ok');
+    openModal(lastModel);
+  });
+
+  function download(filename, text, type){
+    var blob = new Blob([text], {type: type||'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+  function jsonFilename(){
+    var id = val('identificador') || val('nombre_aplicacion') || 'solicitud';
+    return 'solicitud_infra_' + id.replace(/[^\w\-]+/g,'_') + '.json';
+  }
+
+  document.getElementById('btnJson').addEventListener('click', function(){
+    if(!validate()){ setStatus('Faltan campos obligatorios (marcados en rojo).', 'err'); return; }
+    lastModel = buildModel();
+    download(jsonFilename(), JSON.stringify(lastModel,null,2));
+    setStatus('JSON descargado.', 'ok');
+  });
+  document.getElementById('dlJson2').addEventListener('click', function(){
+    if(lastModel) download(jsonFilename(), JSON.stringify(lastModel,null,2));
+  });
+
+  function copyText(text, okMsg){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ flash(okMsg); }, function(){ legacyCopy(text, okMsg); });
+    } else { legacyCopy(text, okMsg); }
+  }
+  function legacyCopy(text, okMsg){
+    var ta = document.createElement('textarea'); ta.value = text;
+    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand('copy'); flash(okMsg); }catch(e){ flash('No se pudo copiar automáticamente.'); }
+    document.body.removeChild(ta);
+  }
+  function flash(msg){ var wh=document.getElementById('whStatus'); }
+
+  document.getElementById('copyRow').addEventListener('click', function(){
+    copyText(document.getElementById('rowOut').dataset.tsv, 'Fila copiada');
+    this.textContent = '✓ Copiado'; var self=this;
+    setTimeout(function(){ self.textContent='📋 Copiar fila (TSV)'; }, 1600);
+  });
+  document.getElementById('copyJson').addEventListener('click', function(){
+    copyText(document.getElementById('jsonOut').textContent, 'JSON copiado');
+    this.textContent='✓ Copiado'; var self=this;
+    setTimeout(function(){ self.textContent='📋 Copiar JSON'; }, 1600);
+  });
+
+  /* Webhook (optional Power Automate) */
+  document.getElementById('sendWebhook').addEventListener('click', function(){
+    var url = document.getElementById('webhookUrl').value.trim();
+    var st = document.getElementById('whStatus');
+    if(!url){ st.textContent='Pega la URL del flujo primero.'; st.className='status err'; return; }
+    if(!lastModel){ st.textContent='Genera la solicitud primero.'; st.className='status err'; return; }
+    st.textContent='Enviando…'; st.className='status';
+    var payload = { model: lastModel, sharepoint_row: buildSharePointRow(lastModel) };
+    fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
+      .then(function(r){
+        if(r.ok){ st.textContent='✓ Enviado a SharePoint vía Power Automate.'; st.className='status ok'; }
+        else { st.textContent='El flujo respondió con estado '+r.status+'.'; st.className='status err'; }
+      })
+      .catch(function(e){ st.textContent='No se pudo enviar (revisa la URL / CORS del flujo).'; st.className='status err'; });
+  });
+
+  /* Modal + tabs */
+  document.getElementById('closeModal').addEventListener('click', function(){ document.getElementById('modal').classList.remove('show'); });
+  document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
+  document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.tabpane').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('pane-'+btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  /* Reset */
+  document.getElementById('btnReset').addEventListener('click', function(){
+    if(!confirm('¿Limpiar todo el formulario?')) return;
+    document.getElementById('reqForm').reset();
+    svcBody.innerHTML=''; svcRow({rol:'Front-End'}); svcRow({rol:'Back-End (API)'});
+    secrets=[]; renderSecrets();
+    document.getElementById('consumo_fields').classList.remove('show');
+    document.getElementById('expo_fields').classList.remove('show');
+    recalc(); setStatus('Formulario limpio.');
+  });
+
+  /* Nav active state */
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('#stepnav a'));
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY + 120;
+    navLinks.forEach(function(a){
+      var sec = document.querySelector(a.getAttribute('href'));
+      if(sec && sec.offsetTop <= y) a.classList.add('done'); else a.classList.remove('done');
+    });
+  });
+
+  recalc(); renderSecrets();
+})();
+</script>
+</body>
+</html>

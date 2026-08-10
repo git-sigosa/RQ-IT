@@ -1,0 +1,6 @@
+# Visual Studio cache/temp
+.vs/
+
+# Build output
+[Bb]in/
+[Oo]bj/
