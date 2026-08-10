@@ -541,6 +541,16 @@
 <script>
 (function(){
   "use strict";
+
+  /* =========================================================================
+     CONFIGURACIÓN — Guardado automático en SharePoint vía Power Automate
+     Pega aquí la URL del disparador HTTP del flujo ("When a HTTP request is
+     received"). Cuando esté configurada, al pulsar "Generar solicitud" la
+     solicitud se enviará automáticamente a SharePoint.
+     Déjala vacía ("") para desactivar el envío automático.
+     ========================================================================= */
+  var FLOW_URL = "";
+
   var secrets = [];
 
   /* ---------- Services ---------- */
@@ -780,11 +790,29 @@
     document.getElementById('modal').classList.add('show');
   }
 
+  /* Envío a SharePoint vía Power Automate (compartido por auto-envío y webhook) */
+  function sendSolicitud(url, onStatus){
+    if(!url){ onStatus('No hay URL de flujo configurada.', 'err'); return; }
+    if(!lastModel){ onStatus('Genera la solicitud primero.', 'err'); return; }
+    onStatus('Guardando en SharePoint…', '');
+    var payload = { model: lastModel, sharepoint_row: buildSharePointRow(lastModel) };
+    return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
+      .then(function(r){
+        if(r.ok){ onStatus('✓ Guardado en SharePoint.', 'ok'); }
+        else { onStatus('El flujo respondió con estado '+r.status+'.', 'err'); }
+      })
+      .catch(function(e){ onStatus('No se pudo enviar (revisa la URL / CORS del flujo).', 'err'); });
+  }
+
   document.getElementById('btnGenerate').addEventListener('click', function(){
     if(!validate()){ setStatus('Faltan campos obligatorios (marcados en rojo).', 'err'); return; }
     lastModel = buildModel();
-    setStatus('Solicitud generada correctamente.', 'ok');
     openModal(lastModel);
+    if(FLOW_URL){
+      sendSolicitud(FLOW_URL, setStatus);
+    } else {
+      setStatus('Solicitud generada correctamente.', 'ok');
+    }
   });
 
   function download(filename, text, type){
@@ -835,18 +863,11 @@
 
   /* Webhook (optional Power Automate) */
   document.getElementById('sendWebhook').addEventListener('click', function(){
-    var url = document.getElementById('webhookUrl').value.trim();
+    var url = document.getElementById('webhookUrl').value.trim() || FLOW_URL;
     var st = document.getElementById('whStatus');
-    if(!url){ st.textContent='Pega la URL del flujo primero.'; st.className='status err'; return; }
-    if(!lastModel){ st.textContent='Genera la solicitud primero.'; st.className='status err'; return; }
-    st.textContent='Enviando…'; st.className='status';
-    var payload = { model: lastModel, sharepoint_row: buildSharePointRow(lastModel) };
-    fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
-      .then(function(r){
-        if(r.ok){ st.textContent='✓ Enviado a SharePoint vía Power Automate.'; st.className='status ok'; }
-        else { st.textContent='El flujo respondió con estado '+r.status+'.'; st.className='status err'; }
-      })
-      .catch(function(e){ st.textContent='No se pudo enviar (revisa la URL / CORS del flujo).'; st.className='status err'; });
+    function onStatus(msg, cls){ st.textContent = msg; st.className = 'status' + (cls?(' '+cls):''); }
+    if(!url){ onStatus('Pega la URL del flujo primero.', 'err'); return; }
+    sendSolicitud(url, onStatus);
   });
 
   /* Modal + tabs */
