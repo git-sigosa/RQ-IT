@@ -164,6 +164,11 @@ module.exports = async function (context, req) {
     return respond(201, { ok: true, id: newId });
   } catch (err) {
     context.log.error('Error al guardar en SQL: ' + err.message);
-    return respond(500, { ok: false, error: 'No se pudo guardar en la base de datos.' });
+    // DEBUG TEMPORAL — revertir tras diagnosticar la conexión
+    return respond(500, {
+      ok: false,
+      error: 'No se pudo guardar en la base de datos.',
+      debug: { message: err.message, code: err.code, name: err.name }
+    });
   }
 };
