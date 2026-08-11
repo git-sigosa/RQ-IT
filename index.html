@@ -177,7 +177,7 @@
 <div class="wrap">
   <header class="app">
     <h1>Formulario de Requerimientos de Infraestructura</h1>
-    <p>Documenta e identifica los requerimientos de infraestructura para el desarrollo y pase a producción de aplicaciones satélite. Cada solicitud completada se registra en la lista <strong>Solicitudes Infraestructura</strong> de SharePoint.</p>
+    <p>Documenta e identifica los requerimientos de infraestructura para el desarrollo y pase a producción de aplicaciones satélite. Cada solicitud completada se registra en la base de datos <strong>RQ-IT</strong> (SQL Server).</p>
     <span class="chip">Proyectos IT · Sigosa</span>
   </header>
 
@@ -288,6 +288,7 @@
             <div>
               <label class="field" for="esc_max">Instancias máx.</label>
               <input type="number" id="esc_max" min="1" value="3">
+              <div class="err-msg">Debe ser mayor o igual a las instancias mín.</div>
             </div>
           </div>
         </div>
@@ -506,23 +507,22 @@
     </div>
     <div class="m-body">
       <div class="tabbar">
-        <button class="tab-btn active" data-tab="sp">Guardar en SharePoint</button>
+        <button class="tab-btn active" data-tab="sp">Fila para SharePoint (opcional)</button>
         <button class="tab-btn" data-tab="json">JSON completo</button>
       </div>
 
       <div class="tabpane active" id="pane-sp">
-        <p style="margin:0 0 8px;font-size:13.5px">Fila lista para pegar en la lista <strong>Solicitudes Infraestructura</strong>. Copia y pega directamente en la <em>vista de cuadrícula</em>.</p>
+        <p style="margin:0 0 8px;font-size:13.5px">La solicitud ya se guardó en SQL Server. Si además quieres una copia en una lista de SharePoint, esta fila está lista para pegar en la <em>vista de cuadrícula</em>.</p>
         <button type="button" class="btn primary sm" id="copyRow">📋 Copiar fila (TSV)</button>
         <pre id="rowOut" style="margin-top:10px;white-space:pre-wrap"></pre>
         <div class="note">
           <strong>Cómo pegar en SharePoint:</strong> abre la lista → botón <strong>“Editar en vista de cuadrícula”</strong> → haz clic en la primera celda de una fila nueva (columna <em>Título</em>) → pega (Ctrl+V). Las 17 columnas se llenan en orden.
         </div>
         <div style="margin-top:16px">
-          <label class="field">Envío automático (opcional) — Power Automate</label>
-          <p style="font-size:12.5px;color:#64748b;margin:0 0 6px">Si tienes un flujo con disparador “Cuando se recibe una solicitud HTTP”, pega su URL y envía el JSON directo a la lista.</p>
+          <label class="field">Guardado en base de datos (SQL Server)</label>
+          <p style="font-size:12.5px;color:#64748b;margin:0 0 6px">La solicitud se guarda automáticamente al generarla. Si falló (por ejemplo, sin conexión), puedes reintentarlo aquí.</p>
           <div class="webhook-row">
-            <input type="text" id="webhookUrl" placeholder="https://prod-XX.westus.logic.azure.com/workflows/...">
-            <button type="button" class="btn sm" id="sendWebhook">Enviar</button>
+            <button type="button" class="btn sm" id="sendWebhook">↻ Reintentar guardado en SQL</button>
           </div>
           <span class="status" id="whStatus" style="font-size:12px"></span>
         </div>
@@ -543,13 +543,13 @@
   "use strict";
 
   /* =========================================================================
-     CONFIGURACIÓN — Guardado automático en SharePoint vía Power Automate
-     Pega aquí la URL del disparador HTTP del flujo ("When a HTTP request is
-     received"). Cuando esté configurada, al pulsar "Generar solicitud" la
-     solicitud se enviará automáticamente a SharePoint.
-     Déjala vacía ("") para desactivar el envío automático.
+     CONFIGURACIÓN — Guardado automático en SQL Server
+     El formulario envía la solicitud a la API de la Static Web App
+     (Azure Function), que la inserta en la base de datos RQ-IT.
+     La URL es relativa (mismo dominio), así que no hay problemas de CORS.
+     Déjala vacía ("") para desactivar el guardado automático.
      ========================================================================= */
-  var FLOW_URL = "";
+  var API_URL = "/api/solicitudes";
 
   var secrets = [];
 
@@ -581,15 +581,17 @@
 
   function collectServices(){
     return Array.prototype.map.call(svcBody.querySelectorAll('tr'), function(tr){
+      var cpuRaw = tr.querySelector('.s-cpu').value.trim();
+      var ramRaw = tr.querySelector('.s-ram').value.trim();
       return {
         nombre_servicio: tr.querySelector('.s-nombre').value.trim(),
         rol: tr.querySelector('.s-rol').value,
         lenguaje_framework: tr.querySelector('.s-lang').value.trim(),
         puerto_interno: tr.querySelector('.s-port').value ? parseInt(tr.querySelector('.s-port').value,10) : null,
-        cpu_estimada: tr.querySelector('.s-cpu').value.trim(),
-        ram_estimada: tr.querySelector('.s-ram').value.trim()
+        cpu_estimada: cpuRaw==='' ? null : num(cpuRaw),
+        ram_estimada: ramRaw==='' ? null : num(ramRaw)
       };
-    }).filter(function(s){ return s.nombre_servicio || s.lenguaje_framework || s.cpu_estimada || s.ram_estimada; });
+    }).filter(function(s){ return s.nombre_servicio || s.lenguaje_framework || s.cpu_estimada!=null || s.ram_estimada!=null; });
   }
 
   function recalc(){
@@ -652,6 +654,17 @@
       if(msg) msg.classList.toggle('show', empty);
       if(empty){ ok=false; if(!first) first=el; }
     });
+
+    /* Instancias: máx. debe ser >= mín. */
+    var minEl = document.getElementById('esc_min');
+    var maxEl = document.getElementById('esc_max');
+    var minV = parseInt(minEl.value,10), maxV = parseInt(maxEl.value,10);
+    var rangeBad = !isNaN(minV) && !isNaN(maxV) && maxV < minV;
+    maxEl.classList.toggle('invalid', rangeBad);
+    var maxMsg = maxEl.parentElement.querySelector('.err-msg');
+    if(maxMsg) maxMsg.classList.toggle('show', rangeBad);
+    if(rangeBad){ ok=false; if(!first) first=maxEl; }
+
     if(first){ first.scrollIntoView({behavior:'smooth',block:'center'}); first.focus({preventScroll:true}); }
     return ok;
   }
@@ -660,6 +673,17 @@
       if(el.value && el.value.trim()){
         el.classList.remove('invalid');
         var m = el.parentElement.querySelector('.err-msg'); if(m) m.classList.remove('show');
+      }
+    });
+  });
+  ['esc_min','esc_max'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', function(){
+      var minV = parseInt(document.getElementById('esc_min').value,10);
+      var maxV = parseInt(document.getElementById('esc_max').value,10);
+      if(isNaN(minV) || isNaN(maxV) || maxV >= minV){
+        var maxEl = document.getElementById('esc_max');
+        maxEl.classList.remove('invalid');
+        var m = maxEl.parentElement.querySelector('.err-msg'); if(m) m.classList.remove('show');
       }
     });
   });
@@ -790,26 +814,31 @@
     document.getElementById('modal').classList.add('show');
   }
 
-  /* Envío a SharePoint vía Power Automate (compartido por auto-envío y webhook) */
+  /* Guardado en SQL Server vía la API de la Static Web App (Azure Function) */
   function sendSolicitud(url, onStatus){
-    if(!url){ onStatus('No hay URL de flujo configurada.', 'err'); return; }
+    if(!url){ onStatus('No hay endpoint de API configurado.', 'err'); return; }
     if(!lastModel){ onStatus('Genera la solicitud primero.', 'err'); return; }
-    onStatus('Guardando en SharePoint…', '');
+    onStatus('Guardando en SQL Server…', '');
     var payload = { model: lastModel, sharepoint_row: buildSharePointRow(lastModel) };
     return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
       .then(function(r){
-        if(r.ok){ onStatus('✓ Guardado en SharePoint.', 'ok'); }
-        else { onStatus('El flujo respondió con estado '+r.status+'.', 'err'); }
+        return r.json().catch(function(){ return {}; }).then(function(data){
+          if(r.ok && data && data.ok){
+            onStatus('✓ Guardado en SQL Server (Id ' + (data.id!=null?data.id:'—') + ').', 'ok');
+          } else {
+            onStatus('No se pudo guardar: ' + ((data && data.error) || ('estado ' + r.status)) + '.', 'err');
+          }
+        });
       })
-      .catch(function(e){ onStatus('No se pudo enviar (revisa la URL / CORS del flujo).', 'err'); });
+      .catch(function(e){ onStatus('No se pudo conectar con la API de guardado.', 'err'); });
   }
 
   document.getElementById('btnGenerate').addEventListener('click', function(){
     if(!validate()){ setStatus('Faltan campos obligatorios (marcados en rojo).', 'err'); return; }
     lastModel = buildModel();
     openModal(lastModel);
-    if(FLOW_URL){
-      sendSolicitud(FLOW_URL, setStatus);
+    if(API_URL){
+      sendSolicitud(API_URL, setStatus);
     } else {
       setStatus('Solicitud generada correctamente.', 'ok');
     }
@@ -848,7 +877,15 @@
     ta.select(); try{ document.execCommand('copy'); flash(okMsg); }catch(e){ flash('No se pudo copiar automáticamente.'); }
     document.body.removeChild(ta);
   }
-  function flash(msg){ var wh=document.getElementById('whStatus'); }
+  var flashTimer = null;
+  function flash(msg){
+    var wh = document.getElementById('whStatus');
+    if(!wh || !msg) return;
+    wh.textContent = msg;
+    wh.className = 'status ok';
+    if(flashTimer) clearTimeout(flashTimer);
+    flashTimer = setTimeout(function(){ wh.textContent=''; wh.className='status'; }, 1800);
+  }
 
   document.getElementById('copyRow').addEventListener('click', function(){
     copyText(document.getElementById('rowOut').dataset.tsv, 'Fila copiada');
@@ -861,13 +898,12 @@
     setTimeout(function(){ self.textContent='📋 Copiar JSON'; }, 1600);
   });
 
-  /* Webhook (optional Power Automate) */
+  /* Reintentar guardado en SQL Server */
   document.getElementById('sendWebhook').addEventListener('click', function(){
-    var url = document.getElementById('webhookUrl').value.trim() || FLOW_URL;
     var st = document.getElementById('whStatus');
     function onStatus(msg, cls){ st.textContent = msg; st.className = 'status' + (cls?(' '+cls):''); }
-    if(!url){ onStatus('Pega la URL del flujo primero.', 'err'); return; }
-    sendSolicitud(url, onStatus);
+    if(!API_URL){ onStatus('No hay endpoint de API configurado.', 'err'); return; }
+    sendSolicitud(API_URL, onStatus);
   });
 
   /* Modal + tabs */

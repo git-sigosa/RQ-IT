@@ -1,0 +1,12 @@
+{
+  "name": "rq-it-api",
+  "version": "1.0.0",
+  "description": "API de la Static Web App RQ-IT: guarda solicitudes de infraestructura en SQL Server.",
+  "main": "solicitudes/index.js",
+  "scripts": {
+    "start": "func start"
+  },
+  "dependencies": {
+    "mssql": "^10.0.2"
+  }
+}
