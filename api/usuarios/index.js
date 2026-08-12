@@ -38,6 +38,9 @@ async function getToken(env) {
   return j.access_token;
 }
 
+// Solo usuarios de este dominio (configurable con AAD_ALLOWED_DOMAIN)
+var DOMAIN = '@' + (process.env.AAD_ALLOWED_DOMAIN || 'sigosa.com').replace(/^@/, '').toLowerCase();
+
 async function fetchUsers(token) {
   var out = [];
   var url = 'https://graph.microsoft.com/v1.0/users?$select=displayName,mail,userPrincipalName,jobTitle&$top=999';
@@ -49,8 +52,12 @@ async function fetchUsers(token) {
     if (!r.ok) throw new Error('graph: ' + ((j.error && j.error.message) || r.status));
     (j.value || []).forEach(function (u) {
       var name = u.displayName;
-      var email = u.mail || u.userPrincipalName;
-      if (name) out.push({ name: name, email: email || '', jobTitle: u.jobTitle || '' });
+      var email = u.mail || u.userPrincipalName || '';
+      // Solo miembros del dominio; excluye invitados (#EXT#) y otros dominios
+      var el = email.toLowerCase();
+      if (name && el.indexOf('#ext#') === -1 && el.slice(-DOMAIN.length) === DOMAIN) {
+        out.push({ name: name, email: email, jobTitle: u.jobTitle || '' });
+      }
     });
     url = j['@odata.nextLink'] || null;
   }
