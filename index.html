@@ -369,10 +369,8 @@
             <table class="svc-table" id="sucTable">
               <thead>
                 <tr>
-                  <th style="min-width:170px">Sucursal</th>
-                  <th style="min-width:150px">Ubicación / Ciudad</th>
-                  <th style="min-width:170px">Segmento de red / IP (opcional)</th>
-                  <th></th>
+                  <th>Sucursal</th>
+                  <th style="width:44px"></th>
                 </tr>
               </thead>
               <tbody id="sucBody"></tbody>
@@ -581,26 +579,18 @@
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td><input type="text" class="su-nombre" placeholder="Ej. Sucursal Centro"></td>'+
-      '<td><input type="text" class="su-ubic" placeholder="Ciudad / País"></td>'+
-      '<td><input type="text" class="su-red" placeholder="10.0.0.0/24 (opcional)"></td>'+
       '<td><button type="button" class="del" title="Eliminar">×</button></td>';
     sucBody.appendChild(tr);
     tr.querySelector('.del').addEventListener('click', function(){ tr.remove(); });
     if(data.nombre) tr.querySelector('.su-nombre').value = data.nombre;
-    if(data.ubicacion) tr.querySelector('.su-ubic').value = data.ubicacion;
-    if(data.red) tr.querySelector('.su-red').value = data.red;
     return tr;
   }
   document.getElementById('addSuc').addEventListener('click', function(){ sucRow(); });
 
   function collectSucursales(){
     return Array.prototype.map.call(sucBody.querySelectorAll('tr'), function(tr){
-      return {
-        nombre: tr.querySelector('.su-nombre').value.trim(),
-        ubicacion: tr.querySelector('.su-ubic').value.trim(),
-        red: tr.querySelector('.su-red').value.trim()
-      };
-    }).filter(function(s){ return s.nombre || s.ubicacion || s.red; });
+      return { nombre: tr.querySelector('.su-nombre').value.trim() };
+    }).filter(function(s){ return s.nombre; });
   }
 
   function isAccesoInterno(){
@@ -941,7 +931,7 @@
       '</table>'+
       '<h2>Redes y APIs</h2><table>'+
         fld('Dominio público', ra.dominio_publico)+fld('Tipo de acceso', ra.tipo_acceso)+
-        ((ra.acceso_interno_sucursales&&ra.acceso_interno_sucursales.length) ? fld('Sucursales con acceso', ra.acceso_interno_sucursales.map(function(s){return s.nombre+(s.ubicacion?(' ('+s.ubicacion+')'):'')+(s.red?(' ['+s.red+']'):'');}).join('; ')) : '')+
+        ((ra.acceso_interno_sucursales&&ra.acceso_interno_sucursales.length) ? fld('Sucursales con acceso', ra.acceso_interno_sucursales.map(function(s){return s.nombre;}).join('; ')) : '')+
         fld('Consume APIs externas', (ra.consumo_apis_externas&&ra.consumo_apis_externas.requiere) ? ('Sí — '+esc(ra.consumo_apis_externas.sistema_destino)) : 'No')+
         fld('Expone APIs propias', (ra.exposicion_apis_propias&&ra.exposicion_apis_propias.requiere) ? ('Sí — '+esc(ra.exposicion_apis_propias.ruta_base)) : 'No')+
       '</table>'+
