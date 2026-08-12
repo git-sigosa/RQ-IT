@@ -506,34 +506,12 @@
       <button class="x" id="closeModal" title="Cerrar">×</button>
     </div>
     <div class="m-body">
-      <div class="tabbar">
-        <button class="tab-btn active" data-tab="sp">Fila para SharePoint (opcional)</button>
-        <button class="tab-btn" data-tab="json">JSON completo</button>
+      <p style="margin:0 0 16px;font-size:14px">Tu solicitud está lista. Descárgala en PDF o envíala para guardarla en la base de datos <strong>RQ-IT</strong> (SQL Server).</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button type="button" class="btn" id="btnPdf">⬇ Descargar PDF</button>
+        <button type="button" class="btn primary" id="btnEnviar">Enviar Solicitud</button>
       </div>
-
-      <div class="tabpane active" id="pane-sp">
-        <p style="margin:0 0 8px;font-size:13.5px">La solicitud ya se guardó en SQL Server. Si además quieres una copia en una lista de SharePoint, esta fila está lista para pegar en la <em>vista de cuadrícula</em>.</p>
-        <button type="button" class="btn primary sm" id="copyRow">📋 Copiar fila (TSV)</button>
-        <pre id="rowOut" style="margin-top:10px;white-space:pre-wrap"></pre>
-        <div class="note">
-          <strong>Cómo pegar en SharePoint:</strong> abre la lista → botón <strong>“Editar en vista de cuadrícula”</strong> → haz clic en la primera celda de una fila nueva (columna <em>Título</em>) → pega (Ctrl+V). Las 17 columnas se llenan en orden.
-        </div>
-        <div style="margin-top:16px">
-          <label class="field">Guardado en base de datos (SQL Server)</label>
-          <p style="font-size:12.5px;color:#64748b;margin:0 0 6px">La solicitud se guarda automáticamente al generarla. Si falló (por ejemplo, sin conexión), puedes reintentarlo aquí.</p>
-          <div class="webhook-row">
-            <button type="button" class="btn sm" id="sendWebhook">↻ Reintentar guardado en SQL</button>
-          </div>
-          <span class="status" id="whStatus" style="font-size:12px"></span>
-        </div>
-      </div>
-
-      <div class="tabpane" id="pane-json">
-        <p style="margin:0 0 8px;font-size:13.5px">Registro estructurado completo (conforme al esquema).</p>
-        <button type="button" class="btn sm" id="copyJson">📋 Copiar JSON</button>
-        <button type="button" class="btn sm" id="dlJson2">⬇ Descargar</button>
-        <pre id="jsonOut" style="margin-top:10px"></pre>
-      </div>
+      <span class="status" id="modalStatus" style="display:block;margin-top:14px;font-size:13px"></span>
     </div>
   </div>
 </div>
@@ -805,12 +783,6 @@
   }
 
   function openModal(m){
-    var row = buildSharePointRow(m);
-    var header = SP_COLUMNS.join('\t');
-    var tsv = rowToTSV(row);
-    document.getElementById('rowOut').textContent = header + '\n' + tsv;
-    document.getElementById('rowOut').dataset.tsv = tsv;
-    document.getElementById('jsonOut').textContent = JSON.stringify(m, null, 2);
     document.getElementById('modal').classList.add('show');
   }
 
@@ -836,12 +808,10 @@
   document.getElementById('btnGenerate').addEventListener('click', function(){
     if(!validate()){ setStatus('Faltan campos obligatorios (marcados en rojo).', 'err'); return; }
     lastModel = buildModel();
+    var ms = document.getElementById('modalStatus');
+    ms.textContent = ''; ms.className = 'status';
     openModal(lastModel);
-    if(API_URL){
-      sendSolicitud(API_URL, setStatus);
-    } else {
-      setStatus('Solicitud generada correctamente.', 'ok');
-    }
+    setStatus('Solicitud generada. Revísala y pulsa Enviar Solicitud.', 'ok');
   });
 
   function download(filename, text, type){
@@ -862,61 +832,97 @@
     download(jsonFilename(), JSON.stringify(lastModel,null,2));
     setStatus('JSON descargado.', 'ok');
   });
-  document.getElementById('dlJson2').addEventListener('click', function(){
-    if(lastModel) download(jsonFilename(), JSON.stringify(lastModel,null,2));
+  /* ---------- Descargar PDF (vía diálogo de impresión del navegador) ---------- */
+  function esc(s){
+    return String(s==null?'':s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function pdfFilename(){
+    var id = val('identificador') || val('nombre_aplicacion') || 'solicitud';
+    return 'Solicitud_' + id.replace(/[^\w\-]+/g,'_');
+  }
+  function buildPrintHTML(m){
+    var ig=m.informacion_general, cc=m.computo_y_contenedores, bd=m.base_de_datos,
+        ra=m.redes_y_apis, sm=m.seguridad_y_monitoreo, cr=m.clasificacion_registro;
+    function fld(label, value){ return '<tr><th>'+esc(label)+'</th><td>'+esc(value)+'</td></tr>'; }
+    var esc2 = cc.escalabilidad || {};
+    var svcRows = (cc.servicios||[]).map(function(s){
+      return '<tr><td>'+esc(s.nombre_servicio)+'</td><td>'+esc(s.rol)+'</td><td>'+esc(s.lenguaje_framework)+
+             '</td><td>'+esc(s.puerto_interno)+'</td><td>'+esc(s.cpu_estimada)+'</td><td>'+esc(s.ram_estimada)+'</td></tr>';
+    }).join('');
+    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>'+esc(pdfFilename())+'</title><style>'+
+      'body{font-family:Segoe UI,Arial,sans-serif;color:#1e293b;margin:32px;font-size:12.5px}'+
+      'h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:22px 0 8px;border-bottom:2px solid #6d28d9;padding-bottom:4px;color:#6d28d9}'+
+      '.sub{color:#64748b;margin:0 0 12px;font-size:12px}'+
+      'table{border-collapse:collapse;width:100%;margin:0}'+
+      'th,td{border:1px solid #cbd5e1;padding:6px 9px;text-align:left;vertical-align:top}'+
+      'th{background:#f1f5f9;width:230px;font-weight:600}table.svc th{width:auto}'+
+      '@media print{body{margin:12mm}}</style></head><body>'+
+      '<h1>Solicitud de Infraestructura</h1>'+
+      '<p class="sub">'+esc(ig.identificador)+(ig.identificador?' · ':'')+esc(ig.nombre_aplicacion)+'</p>'+
+      '<h2>Información general</h2><table>'+
+        fld('Aplicación', ig.nombre_aplicacion)+fld('Identificador', ig.identificador)+
+        fld('Proyecto', ig.proyecto)+fld('Líder técnico', ig.lider_tecnico)+
+        fld('Fecha a producción', ig.fecha_produccion)+fld('Descripción', ig.descripcion)+
+      '</table>'+
+      '<h2>Cómputo y contenedores</h2><table>'+
+        fld('Arquitectura de despliegue', cc.arquitectura_despliegue)+
+        fld('Escalabilidad', (esc2.tipo||'')+' (min '+(esc2.instancias_min!=null?esc2.instancias_min:'')+' / max '+(esc2.instancias_max!=null?esc2.instancias_max:'')+')')+
+        fld('CPU total (vCPU)', cc.cpu_total_vcpu)+fld('RAM total (GB)', cc.ram_total_gb)+
+      '</table>'+
+      (svcRows ? ('<table class="svc" style="margin-top:8px"><tr><th>Servicio</th><th>Rol</th><th>Lenguaje</th><th>Puerto</th><th>CPU</th><th>RAM</th></tr>'+svcRows+'</table>') : '')+
+      '<h2>Base de datos</h2><table>'+
+        fld('Motor', bd.motor_bd)+fld('Modelo de despliegue', bd.modelo_despliegue)+
+        fld('Almacenamiento inicial (GB)', bd.almacenamiento_inicial_gb)+
+        fld('Crecimiento mensual (GB)', bd.crecimiento_mensual_gb)+
+        fld('Retención de backups', bd.retencion_backups)+
+        fld('Variables de entorno (claves)', (bd.variables_entorno_keys||[]).join(', '))+
+      '</table>'+
+      '<h2>Redes y APIs</h2><table>'+
+        fld('Dominio público', ra.dominio_publico)+fld('Tipo de acceso', ra.tipo_acceso)+
+        fld('Consume APIs externas', (ra.consumo_apis_externas&&ra.consumo_apis_externas.requiere) ? ('Sí — '+esc(ra.consumo_apis_externas.sistema_destino)) : 'No')+
+        fld('Expone APIs propias', (ra.exposicion_apis_propias&&ra.exposicion_apis_propias.requiere) ? ('Sí — '+esc(ra.exposicion_apis_propias.ruta_base)) : 'No')+
+      '</table>'+
+      '<h2>Seguridad y monitoreo</h2><table>'+
+        fld('Autenticación de usuarios', sm.metodo_autenticacion_usuarios)+
+        fld('Sensibilidad de datos', sm.nivel_sensibilidad_datos)+
+        fld('Endpoint de healthcheck', sm.endpoint_healthcheck)+
+      '</table>'+
+      '<h2>Clasificación</h2><table>'+
+        fld('Ambiente', cr.ambiente)+fld('Usuarios concurrentes', cr.usuarios_concurrentes)+
+        fld('Criticidad', cr.criticidad)+fld('Requiere HA', cr.requiere_ha)+
+        fld('Requiere DR', cr.requiere_dr)+fld('Estado', cr.estado)+
+      '</table></body></html>';
+  }
+  function downloadPdf(m){
+    var iframe = document.createElement('iframe');
+    iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
+    iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
+    document.body.appendChild(iframe);
+    var doc = iframe.contentWindow.document;
+    doc.open(); doc.write(buildPrintHTML(m)); doc.close();
+    iframe.contentWindow.focus();
+    setTimeout(function(){
+      iframe.contentWindow.print();
+      setTimeout(function(){ document.body.removeChild(iframe); }, 1000);
+    }, 400);
+  }
+
+  document.getElementById('btnPdf').addEventListener('click', function(){
+    if(!lastModel) return;
+    downloadPdf(lastModel);
   });
 
-  function copyText(text, okMsg){
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(function(){ flash(okMsg); }, function(){ legacyCopy(text, okMsg); });
-    } else { legacyCopy(text, okMsg); }
-  }
-  function legacyCopy(text, okMsg){
-    var ta = document.createElement('textarea'); ta.value = text;
-    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
-    ta.select(); try{ document.execCommand('copy'); flash(okMsg); }catch(e){ flash('No se pudo copiar automáticamente.'); }
-    document.body.removeChild(ta);
-  }
-  var flashTimer = null;
-  function flash(msg){
-    var wh = document.getElementById('whStatus');
-    if(!wh || !msg) return;
-    wh.textContent = msg;
-    wh.className = 'status ok';
-    if(flashTimer) clearTimeout(flashTimer);
-    flashTimer = setTimeout(function(){ wh.textContent=''; wh.className='status'; }, 1800);
-  }
-
-  document.getElementById('copyRow').addEventListener('click', function(){
-    copyText(document.getElementById('rowOut').dataset.tsv, 'Fila copiada');
-    this.textContent = '✓ Copiado'; var self=this;
-    setTimeout(function(){ self.textContent='📋 Copiar fila (TSV)'; }, 1600);
-  });
-  document.getElementById('copyJson').addEventListener('click', function(){
-    copyText(document.getElementById('jsonOut').textContent, 'JSON copiado');
-    this.textContent='✓ Copiado'; var self=this;
-    setTimeout(function(){ self.textContent='📋 Copiar JSON'; }, 1600);
-  });
-
-  /* Reintentar guardado en SQL Server */
-  document.getElementById('sendWebhook').addEventListener('click', function(){
-    var st = document.getElementById('whStatus');
+  document.getElementById('btnEnviar').addEventListener('click', function(){
+    var st = document.getElementById('modalStatus');
     function onStatus(msg, cls){ st.textContent = msg; st.className = 'status' + (cls?(' '+cls):''); }
     if(!API_URL){ onStatus('No hay endpoint de API configurado.', 'err'); return; }
     sendSolicitud(API_URL, onStatus);
   });
 
-  /* Modal + tabs */
+  /* Modal */
   document.getElementById('closeModal').addEventListener('click', function(){ document.getElementById('modal').classList.remove('show'); });
   document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
-  document.querySelectorAll('.tab-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
-      document.querySelectorAll('.tabpane').forEach(function(p){ p.classList.remove('active'); });
-      btn.classList.add('active');
-      document.getElementById('pane-'+btn.dataset.tab).classList.add('active');
-    });
-  });
 
   /* Reset */
   document.getElementById('btnReset').addEventListener('click', function(){
