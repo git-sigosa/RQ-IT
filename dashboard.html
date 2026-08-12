@@ -107,6 +107,8 @@
   </div>
 </div>
 
+<datalist id="usuariosDL"></datalist>
+
 <div class="wrap">
   <div class="page-h">
     <div>
@@ -171,7 +173,7 @@
   function editCells(it){
     var estadoOpts = ESTADOS.map(function(e){ return '<option'+(e===it.Estado?' selected':'')+'>'+esc(e)+'</option>'; }).join('');
     return '<td><div style="margin-bottom:6px">'+pill(it.Estado)+'</div><select class="e-estado">'+estadoOpts+'</select></td>'+
-      '<td><input type="text" class="e-resp" value="'+esc(it.Responsable||'')+'" placeholder="Asignar…"></td>'+
+      '<td><input type="text" class="e-resp" list="usuariosDL" autocomplete="off" value="'+esc(it.Responsable||'')+'" placeholder="Asignar…"></td>'+
       '<td><input type="date" class="e-fecha" value="'+esc(fmtDate(it.FechaEntrega))+'"></td>'+
       '<td><button class="btn primary sm e-save" style="padding:7px 12px">Guardar</button><div class="save-msg e-msg"></div></td>';
   }
@@ -215,6 +217,19 @@
   fetch('/.auth/me').then(function(r){return r.json();}).then(function(d){
     var p=d&&d.clientPrincipal; document.getElementById('userName').textContent = p?(p.userDetails||'usuario'):'invitado';
   }).catch(function(){ document.getElementById('userName').textContent=''; });
+
+  /* Usuarios del directorio (Entra) para el selector de Responsable */
+  (function loadUsuarios(){
+    var dl = document.getElementById('usuariosDL');
+    fetch('/api/usuarios').then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.ok || !d.items) return;
+      dl.innerHTML = d.items.map(function(u){
+        var v = String(u.name||'').replace(/"/g,'&quot;');
+        var lbl = String(u.email||u.jobTitle||'').replace(/"/g,'&quot;');
+        return '<option value="'+v+'"'+(lbl?(' label="'+lbl+'"'):'')+'></option>';
+      }).join('');
+    }).catch(function(){});
+  })();
 
   function colspan(){ return TYPES[currentType].headers.length; }
   function setState(html){ tbody.innerHTML='<tr><td colspan="'+colspan()+'">'+html+'</td></tr>'; }

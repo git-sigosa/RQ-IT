@@ -217,7 +217,8 @@
           </div>
           <div>
             <label class="field" for="lider_tecnico">Líder del Proyecto / Responsable Técnico<span class="req">*</span></label>
-            <input type="text" id="lider_tecnico" data-req placeholder="Nombre y apellido">
+            <input type="text" id="lider_tecnico" data-req list="usuariosDL" autocomplete="off" placeholder="Escribe para buscar en el directorio…">
+            <datalist id="usuariosDL"></datalist>
             <div class="err-msg">Este campo es obligatorio.</div>
           </div>
           <div>
@@ -549,6 +550,21 @@
      Déjala vacía ("") para desactivar el guardado automático.
      ========================================================================= */
   var API_URL = "/api/solicitudes";
+
+  /* Cargar usuarios del directorio (Entra) para el selector de Líder */
+  function loadUsuarios(){
+    var dl = document.getElementById('usuariosDL');
+    if(!dl) return;
+    fetch('/api/usuarios').then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.ok || !d.items) return;
+      dl.innerHTML = d.items.map(function(u){
+        var v = String(u.name||'').replace(/"/g,'&quot;');
+        var lbl = String(u.email||u.jobTitle||'').replace(/"/g,'&quot;');
+        return '<option value="'+v+'"'+(lbl?(' label="'+lbl+'"'):'')+'></option>';
+      }).join('');
+    }).catch(function(){});
+  }
+  loadUsuarios();
 
   var secrets = [];
 

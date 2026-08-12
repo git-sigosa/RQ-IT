@@ -106,7 +106,8 @@
       <div class="grid">
         <div>
           <label class="field" for="solicitante">Solicitante <span class="req">*</span></label>
-          <input type="text" id="solicitante" data-req placeholder="Nombre de quien solicita">
+          <input type="text" id="solicitante" data-req list="usuariosDL" autocomplete="off" placeholder="Escribe para buscar en el directorio…">
+          <datalist id="usuariosDL"></datalist>
           <div class="err-msg">Requerido</div>
         </div>
         <div>
@@ -185,6 +186,20 @@
   "use strict";
   var API = "/api/solicitudes-erp";
   var lastModel = null;
+
+  /* Cargar usuarios del directorio (Entra) para el selector de Solicitante */
+  (function loadUsuarios(){
+    var dl = document.getElementById('usuariosDL');
+    if(!dl) return;
+    fetch('/api/usuarios').then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.ok || !d.items) return;
+      dl.innerHTML = d.items.map(function(u){
+        var v = String(u.name||'').replace(/"/g,'&quot;');
+        var lbl = String(u.email||u.jobTitle||'').replace(/"/g,'&quot;');
+        return '<option value="'+v+'"'+(lbl?(' label="'+lbl+'"'):'')+'></option>';
+      }).join('');
+    }).catch(function(){});
+  })();
 
   function val(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
