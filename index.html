@@ -362,6 +362,25 @@
           </div>
         </div>
 
+        <!-- sucursales con acceso interno -->
+        <div class="cond-fields" id="sucursales_block" style="margin-top:16px">
+          <label class="field">Sucursales con acceso a la aplicación <span class="hint">Aplica cuando el acceso es interno (VPN corporativa o red interna). Indica las sucursales que podrán acceder.</span></label>
+          <div class="svc-wrap">
+            <table class="svc-table" id="sucTable">
+              <thead>
+                <tr>
+                  <th style="min-width:170px">Sucursal</th>
+                  <th style="min-width:150px">Ubicación / Ciudad</th>
+                  <th style="min-width:170px">Segmento de red / IP (opcional)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="sucBody"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn ghost-add sm" id="addSuc" style="margin-top:10px">＋ Agregar sucursal</button>
+        </div>
+
         <!-- consumo apis externas -->
         <div class="toggle-block" style="margin-top:16px">
           <div class="toggle-head">
@@ -555,6 +574,47 @@
   document.getElementById('addSvc').addEventListener('click', function(){ svcRow(); });
   svcRow({rol:'Front-End'}); svcRow({rol:'Back-End (API)'});
 
+  /* ---------- Sucursales con acceso interno ---------- */
+  var sucBody = document.getElementById('sucBody');
+  function sucRow(data){
+    data = data || {};
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="text" class="su-nombre" placeholder="Ej. Sucursal Centro"></td>'+
+      '<td><input type="text" class="su-ubic" placeholder="Ciudad / País"></td>'+
+      '<td><input type="text" class="su-red" placeholder="10.0.0.0/24 (opcional)"></td>'+
+      '<td><button type="button" class="del" title="Eliminar">×</button></td>';
+    sucBody.appendChild(tr);
+    tr.querySelector('.del').addEventListener('click', function(){ tr.remove(); });
+    if(data.nombre) tr.querySelector('.su-nombre').value = data.nombre;
+    if(data.ubicacion) tr.querySelector('.su-ubic').value = data.ubicacion;
+    if(data.red) tr.querySelector('.su-red').value = data.red;
+    return tr;
+  }
+  document.getElementById('addSuc').addEventListener('click', function(){ sucRow(); });
+
+  function collectSucursales(){
+    return Array.prototype.map.call(sucBody.querySelectorAll('tr'), function(tr){
+      return {
+        nombre: tr.querySelector('.su-nombre').value.trim(),
+        ubicacion: tr.querySelector('.su-ubic').value.trim(),
+        red: tr.querySelector('.su-red').value.trim()
+      };
+    }).filter(function(s){ return s.nombre || s.ubicacion || s.red; });
+  }
+
+  function isAccesoInterno(){
+    var v = val('tipo_acceso');
+    return v === 'Restringido (VPN Corporativa)' || v === 'Red Interna Solamente (VPC)';
+  }
+  function updateSucursalesVisibility(){
+    var show = isAccesoInterno();
+    document.getElementById('sucursales_block').classList.toggle('show', show);
+    if(show && sucBody.children.length === 0){ sucRow(); }
+  }
+  document.getElementById('tipo_acceso').addEventListener('change', updateSucursalesVisibility);
+  updateSucursalesVisibility();
+
   function num(v){ var n = parseFloat(v); return isNaN(n)?0:n; }
 
   function collectServices(){
@@ -711,6 +771,7 @@
       redes_y_apis:{
         dominio_publico: val('dominio_publico'),
         tipo_acceso: val('tipo_acceso'),
+        acceso_interno_sucursales: isAccesoInterno() ? collectSucursales() : [],
         consumo_apis_externas:{
           requiere: document.getElementById('consumo_req').checked,
           sistema_destino: val('consumo_sistema'),
@@ -880,6 +941,7 @@
       '</table>'+
       '<h2>Redes y APIs</h2><table>'+
         fld('Dominio público', ra.dominio_publico)+fld('Tipo de acceso', ra.tipo_acceso)+
+        ((ra.acceso_interno_sucursales&&ra.acceso_interno_sucursales.length) ? fld('Sucursales con acceso', ra.acceso_interno_sucursales.map(function(s){return s.nombre+(s.ubicacion?(' ('+s.ubicacion+')'):'')+(s.red?(' ['+s.red+']'):'');}).join('; ')) : '')+
         fld('Consume APIs externas', (ra.consumo_apis_externas&&ra.consumo_apis_externas.requiere) ? ('Sí — '+esc(ra.consumo_apis_externas.sistema_destino)) : 'No')+
         fld('Expone APIs propias', (ra.exposicion_apis_propias&&ra.exposicion_apis_propias.requiere) ? ('Sí — '+esc(ra.exposicion_apis_propias.ruta_base)) : 'No')+
       '</table>'+
@@ -932,6 +994,7 @@
     secrets=[]; renderSecrets();
     document.getElementById('consumo_fields').classList.remove('show');
     document.getElementById('expo_fields').classList.remove('show');
+    sucBody.innerHTML=''; updateSucursalesVisibility();
     recalc(); setStatus('Formulario limpio.');
   });
 
