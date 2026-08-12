@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RQ-IT · Dashboard de Solicitudes</title>
+<style>
+  :root{
+    --brand:#6d28d9; --brand-d:#5b21b6; --ink:#1e293b; --muted:#64748b;
+    --line:#e2e8f0; --bg:#f8fafc; --card:#fff; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px}
+  header{background:var(--brand);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  header .sp{flex:1}
+  header a{color:#fff;text-decoration:none;font-size:13px;opacity:.9}
+  header a:hover{opacity:1;text-decoration:underline}
+  .user{font-size:13px;opacity:.95}
+  .wrap{max-width:1200px;margin:0 auto;padding:22px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .n{font-size:26px;font-weight:700;line-height:1}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:6px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .toolbar input,.toolbar select{padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:#fff}
+  .toolbar input[type=search]{min-width:220px}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 14px;font-size:13px;cursor:pointer}
+  .btn:hover{background:#f1f5f9}
+  .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .btn.primary:hover{background:var(--brand-d)}
+  .btn.sm{padding:6px 10px;font-size:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .tablewrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:900px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+  th{background:#f1f5f9;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);position:sticky;top:0}
+  td .sub{color:var(--muted);font-size:12px}
+  td input,td select{padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#fff}
+  td input[type=text]{min-width:130px}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600}
+  .b-nuevo{background:#e0e7ff;color:#3730a3}
+  .b-rev{background:#fef9c3;color:#854d0e}
+  .b-aprob{background:#dcfce7;color:#166534}
+  .b-prov{background:#e0f2fe;color:#075985}
+  .b-comp{background:#d1fae5;color:#065f46}
+  .b-rech{background:#fee2e2;color:#991b1b}
+  .b-def{background:#f1f5f9;color:#475569}
+  .row-saved{animation:flash 1.2s ease}
+  @keyframes flash{0%{background:#ecfdf5}100%{background:transparent}}
+  .state{padding:40px;text-align:center;color:var(--muted)}
+  .err{color:var(--err)}
+  @media (max-width:640px){ .wrap{padding:14px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>RQ-IT · Dashboard de Solicitudes</h1>
+  <div class="sp"></div>
+  <span class="user" id="user"></span>
+  <a href="/index.html">Nueva solicitud</a>
+  <a href="/.auth/logout" id="logout">Cerrar sesión</a>
+</header>
+
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Buscar aplicación, proyecto, identificador…">
+    <select id="fEstado">
+      <option value="">Todos los estados</option>
+      <option>Nuevo</option><option>En revisión</option><option>Aprobado</option>
+      <option>En provisión</option><option>Completado</option><option>Rechazado</option>
+    </select>
+    <button class="btn" id="btnRefresh">↻ Actualizar</button>
+    <div class="sp" style="flex:1"></div>
+    <span class="user" id="count"></span>
+  </div>
+
+  <div class="card">
+    <div class="tablewrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Solicitud</th>
+            <th>Ambiente</th>
+            <th>Criticidad</th>
+            <th>Recursos</th>
+            <th>Estado</th>
+            <th>Responsable</th>
+            <th>Fecha entrega</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="9"><div class="state" id="state">Cargando…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var API = "/api/solicitudes";
+  var ESTADOS = ["Nuevo","En revisión","Aprobado","En provisión","Completado","Rechazado"];
+  var tbody = document.getElementById('tbody');
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function badgeClass(e){
+    switch(e){
+      case 'Nuevo': return 'b-nuevo';
+      case 'En revisión': return 'b-rev';
+      case 'Aprobado': return 'b-aprob';
+      case 'En provisión': return 'b-prov';
+      case 'Completado': return 'b-comp';
+      case 'Rechazado': return 'b-rech';
+      default: return 'b-def';
+    }
+  }
+  function fmtDate(v){ if(!v) return ''; var d=new Date(v); return isNaN(d)?'' : d.toISOString().slice(0,10); }
+  function fmtDateTime(v){ if(!v) return ''; var d=new Date(v); return isNaN(d)?'' : d.toISOString().slice(0,16).replace('T',' '); }
+
+  /* Usuario autenticado (SWA) */
+  fetch('/.auth/me').then(function(r){ return r.json(); }).then(function(d){
+    var p = d && d.clientPrincipal;
+    document.getElementById('user').textContent = p ? ('👤 ' + (p.userDetails||'')) : '';
+  }).catch(function(){});
+
+  function setState(msg, isErr){
+    tbody.innerHTML = '<tr><td colspan="9"><div class="state '+(isErr?'err':'')+'">'+esc(msg)+'</div></td></tr>';
+  }
+
+  function renderKpis(items){
+    var counts = {}; ESTADOS.forEach(function(e){ counts[e]=0; });
+    items.forEach(function(it){ if(counts[it.Estado]==null) counts[it.Estado]=0; counts[it.Estado]++; });
+    var box = document.getElementById('kpis');
+    var html = '<div class="kpi"><div class="n">'+items.length+'</div><div class="l">Total</div></div>';
+    ESTADOS.forEach(function(e){
+      html += '<div class="kpi"><div class="n">'+(counts[e]||0)+'</div><div class="l">'+esc(e)+'</div></div>';
+    });
+    box.innerHTML = html;
+  }
+
+  function rowHtml(it){
+    var titulo = it.Titulo || it.Aplicacion || ('#'+it.Id);
+    var recursos = [];
+    if(it.CPURequerida!=null) recursos.push(it.CPURequerida+' vCPU');
+    if(it.RAMRequeridaGB!=null) recursos.push(it.RAMRequeridaGB+' GB RAM');
+    if(it.StorageGB!=null) recursos.push(it.StorageGB+' GB');
+    var estadoOpts = ESTADOS.map(function(e){ return '<option'+(e===it.Estado?' selected':'')+'>'+esc(e)+'</option>'; }).join('');
+    return ''+
+      '<td>#'+it.Id+'<div class="sub">'+esc(fmtDate(it.FechaRegistro))+'</div></td>'+
+      '<td><strong>'+esc(titulo)+'</strong>'+(it.Proyecto?('<div class="sub">'+esc(it.Proyecto)+'</div>'):'')+(it.LiderProyecto?('<div class="sub">Líder: '+esc(it.LiderProyecto)+'</div>'):'')+'</td>'+
+      '<td>'+esc(it.Ambiente||'')+'</td>'+
+      '<td>'+esc(it.Criticidad||'')+'</td>'+
+      '<td class="sub">'+esc(recursos.join(' · '))+'</td>'+
+      '<td><select class="e-estado">'+estadoOpts+'</select><div class="sub" style="margin-top:3px"><span class="badge '+badgeClass(it.Estado)+'">'+esc(it.Estado||'—')+'</span></div></td>'+
+      '<td><input type="text" class="e-resp" value="'+esc(it.Responsable||'')+'" placeholder="Asignar…"></td>'+
+      '<td><input type="date" class="e-fecha" value="'+esc(fmtDate(it.FechaEntrega))+'"></td>'+
+      '<td><button class="btn primary sm e-save">Guardar</button><div class="sub e-msg" style="margin-top:4px"></div></td>';
+  }
+
+  function bindRow(tr, it){
+    tr.querySelector('.e-save').addEventListener('click', function(){
+      var btn = this; var msg = tr.querySelector('.e-msg');
+      var payload = {
+        estado: tr.querySelector('.e-estado').value,
+        responsable: tr.querySelector('.e-resp').value.trim(),
+        fechaEntrega: tr.querySelector('.e-fecha').value || null
+      };
+      btn.disabled = true; msg.textContent = 'Guardando…'; msg.className='sub e-msg';
+      fetch(API + '/' + it.Id, {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      }).then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok, d:d}; }); })
+        .then(function(res){
+          btn.disabled = false;
+          if(res.ok && res.d && res.d.ok){
+            msg.textContent='✓ Guardado'; msg.className='sub e-msg';
+            it.Estado = payload.estado;
+            var badge = tr.querySelector('.badge');
+            badge.textContent = payload.estado; badge.className = 'badge ' + badgeClass(payload.estado);
+            tr.classList.remove('row-saved'); void tr.offsetWidth; tr.classList.add('row-saved');
+          } else {
+            msg.textContent = '✗ ' + ((res.d && res.d.error) || 'Error al guardar');
+            msg.className='sub e-msg err';
+          }
+        })
+        .catch(function(){ btn.disabled=false; msg.textContent='✗ Sin conexión'; msg.className='sub e-msg err'; });
+    });
+  }
+
+  function load(){
+    var q = document.getElementById('q').value.trim();
+    var estado = document.getElementById('fEstado').value;
+    var url = API + '?';
+    if(estado) url += 'estado=' + encodeURIComponent(estado) + '&';
+    if(q) url += 'q=' + encodeURIComponent(q);
+    setState('Cargando…');
+    fetch(url).then(function(r){
+      if(r.status===401){ location.href='/.auth/login/aad?post_login_redirect_uri=' + encodeURIComponent(location.pathname); return null; }
+      return r.json();
+    }).then(function(d){
+      if(!d) return;
+      if(!d.ok){ setState((d.error||'No se pudo cargar')+(d.debug?(' — '+d.debug.message):''), true); document.getElementById('kpis').innerHTML=''; return; }
+      var items = d.items || [];
+      renderKpis(items);
+      document.getElementById('count').textContent = items.length + ' solicitud(es)';
+      if(!items.length){ setState('No hay solicitudes que coincidan.'); return; }
+      tbody.innerHTML = '';
+      items.forEach(function(it){
+        var tr = document.createElement('tr');
+        tr.innerHTML = rowHtml(it);
+        tbody.appendChild(tr);
+        bindRow(tr, it);
+      });
+    }).catch(function(){ setState('Error de red al consultar la API.', true); });
+  }
+
+  document.getElementById('btnRefresh').addEventListener('click', load);
+  document.getElementById('fEstado').addEventListener('change', load);
+  var t=null;
+  document.getElementById('q').addEventListener('input', function(){ clearTimeout(t); t=setTimeout(load, 400); });
+
+  load();
+})();
+</script>
+</body>
+</html>

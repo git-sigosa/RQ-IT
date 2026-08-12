@@ -67,6 +67,67 @@ function toDate(v) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/* GET /api/solicitudes  ·  lista para el dashboard (filtros opcionales ?estado= &q=) */
+async function handleList(context, req, respond) {
+  try {
+    const pool = await getPool();
+    const request = pool.request();
+    const estado = req.query ? (req.query.estado || '') : '';
+    const q = req.query ? (req.query.q || '') : '';
+    const where = [];
+    if (estado) { request.input('estado', sql.NVarChar(50), estado); where.push('Estado = @estado'); }
+    if (q) {
+      request.input('q', sql.NVarChar(200), '%' + q + '%');
+      where.push('(Aplicacion LIKE @q OR Proyecto LIKE @q OR Titulo LIKE @q OR Identificador LIKE @q)');
+    }
+    const whereSql = where.length ? (' WHERE ' + where.join(' AND ')) : '';
+    const result = await request.query(
+      'SELECT TOP 500 Id, FechaRegistro, Titulo, Aplicacion, Identificador, Proyecto, ' +
+      'LiderProyecto, Ambiente, Criticidad, CPURequerida, RAMRequeridaGB, StorageGB, ' +
+      'Estado, Responsable, FechaEntrega, FechaActualizacion ' +
+      'FROM dbo.Solicitudes' + whereSql + ' ORDER BY Id DESC'
+    );
+    return respond(200, { ok: true, items: result.recordset || [] });
+  } catch (err) {
+    context.log.error('Error al listar: ' + err.message);
+    return respond(500, { ok: false, error: 'No se pudo consultar la base de datos.', debug: { message: err.message } });
+  }
+}
+
+/* PATCH /api/solicitudes/{id}  ·  actualiza solo campos de seguimiento */
+async function handleUpdate(context, req, respond) {
+  const id = req.params && req.params.id ? parseInt(req.params.id, 10) : null;
+  if (!id || isNaN(id)) return respond(400, { ok: false, error: 'Falta el Id de la solicitud.' });
+
+  const body = req.body || {};
+  const estado = str(body.estado, 50);
+  const responsable = str(body.responsable, 200);
+  const fechaEntrega = toDate(body.fechaEntrega);
+
+  try {
+    const pool = await getPool();
+    const request = pool.request();
+    request.input('Id', sql.Int, id);
+    request.input('Estado', sql.NVarChar(50), estado);
+    request.input('Responsable', sql.NVarChar(200), responsable);
+    request.input('FechaEntrega', sql.Date, fechaEntrega);
+    const result = await request.query(
+      'UPDATE dbo.Solicitudes SET ' +
+      'Estado = COALESCE(@Estado, Estado), ' +
+      'Responsable = @Responsable, ' +
+      'FechaEntrega = @FechaEntrega, ' +
+      'FechaActualizacion = SYSUTCDATETIME() ' +
+      'WHERE Id = @Id'
+    );
+    const affected = result.rowsAffected && result.rowsAffected[0] ? result.rowsAffected[0] : 0;
+    if (!affected) return respond(404, { ok: false, error: 'Solicitud no encontrada.' });
+    return respond(200, { ok: true, id: id });
+  } catch (err) {
+    context.log.error('Error al actualizar: ' + err.message);
+    return respond(500, { ok: false, error: 'No se pudo actualizar la base de datos.', debug: { message: err.message } });
+  }
+}
+
 module.exports = async function (context, req) {
   const respond = function (status, obj) {
     context.res = {
@@ -81,6 +142,11 @@ module.exports = async function (context, req) {
     context.log.error('Faltan variables de entorno SQL_*.');
     return respond(500, { ok: false, error: 'El servidor no tiene configurada la conexión a SQL.' });
   }
+
+  // Enrutamiento por método HTTP
+  const method = (req.method || 'POST').toUpperCase();
+  if (method === 'GET')   { return await handleList(context, req, respond); }
+  if (method === 'PATCH') { return await handleUpdate(context, req, respond); }
 
   const body = req.body || {};
   const model = body.model || body;         // acepta payload envuelto o modelo directo

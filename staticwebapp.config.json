@@ -1,5 +1,11 @@
 {
+  "routes": [
+    { "route": "/dashboard.html", "allowedRoles": ["authenticated"] },
+    { "route": "/api/solicitudes", "methods": ["GET"], "allowedRoles": ["authenticated"] },
+    { "route": "/api/solicitudes/*", "methods": ["GET", "PATCH"], "allowedRoles": ["authenticated"] }
+  ],
   "navigationFallback": {
-    "rewrite": "/index.html"
+    "rewrite": "/index.html",
+    "exclude": ["/api/*", "/dashboard.html", "/.auth/*"]
   }
 }
