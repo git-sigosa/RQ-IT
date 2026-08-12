@@ -13,7 +13,9 @@
   "routes": [
     { "route": "/dashboard.html", "allowedRoles": ["authenticated"] },
     { "route": "/api/solicitudes", "methods": ["GET"], "allowedRoles": ["authenticated"] },
-    { "route": "/api/solicitudes/*", "methods": ["GET", "PATCH"], "allowedRoles": ["authenticated"] }
+    { "route": "/api/solicitudes/*", "methods": ["GET", "PATCH"], "allowedRoles": ["authenticated"] },
+    { "route": "/api/solicitudes-erp", "methods": ["GET"], "allowedRoles": ["authenticated"] },
+    { "route": "/api/solicitudes-erp/*", "methods": ["GET", "PATCH"], "allowedRoles": ["authenticated"] }
   ],
   "responseOverrides": {
     "401": {
