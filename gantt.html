@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RQ-IT · Portal de Proyectos (Gantt)</title>
+<style>
+  :root{
+    --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff;
+    --bg:#f6f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b; --line:#e6e8ef;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+    --shadow-sm:0 1px 2px rgba(16,24,40,.06);
+    --radius:16px; --ok:#16a34a; --err:#dc2626; --today:#ef4444;
+    --grad:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);
+    --bar:#7c3aed; --bar-bg:#ede9fe; --hito:#d97706;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
+      --bar-bg:#2a2350;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-sm:0 1px 2px rgba(0,0,0,.35)}
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:"Segoe UI",Inter,system-ui,-apple-system,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .appbar{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
+  .appbar .inner{max-width:1360px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px}
+  .logo{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;flex:none;box-shadow:0 4px 12px rgba(124,58,237,.35)}
+  .brand-t{display:flex;flex-direction:column;line-height:1.15}
+  .brand-t b{font-size:15px;font-weight:700}.brand-t span{font-size:12px;color:var(--muted)}
+  .grow{flex:1}
+  .userchip{display:flex;align-items:center;gap:8px;background:var(--brand-soft);color:var(--brand-2);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .userchip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+  .ghostlink{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px}
+  .ghostlink:hover{background:var(--brand-soft);color:var(--brand-2)}
+
+  .layout{max-width:1360px;margin:0 auto;padding:18px 22px;display:grid;grid-template-columns:280px 1fr;gap:18px}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+  .side{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px;height:max-content}
+  .side h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 10px}
+  .plist{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+  .pitem{border:1px solid var(--line);border-radius:11px;padding:10px 12px;cursor:pointer;transition:background .12s,border-color .12s}
+  .pitem:hover{background:var(--brand-soft)}
+  .pitem.active{border-color:var(--brand);background:var(--brand-soft)}
+  .pitem b{display:block;font-size:13.5px}
+  .pitem small{color:var(--muted);font-size:11.5px}
+
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:11px;padding:9px 14px;font-size:13.5px;cursor:pointer;font-weight:650}
+  .btn:hover{background:var(--brand-soft)}
+  .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .btn.primary:hover{background:var(--brand-2)}
+  .btn.sm{padding:6px 10px;font-size:12.5px}
+  .btn.block{width:100%;margin-top:10px}
+  .btn.danger{color:var(--err)}
+
+  .main{min-width:0}
+  .phead{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px 18px;margin-bottom:14px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+  .phead h1{margin:0;font-size:19px;font-weight:750}
+  .phead .meta{color:var(--muted);font-size:12.5px;margin-top:4px;display:flex;gap:14px;flex-wrap:wrap}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:14px;overflow:hidden}
+  .panel .ph{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .panel .ph h3{margin:0;font-size:14px;font-weight:700}
+
+  /* Gantt */
+  .gantt{display:grid;grid-template-columns:300px 1fr;overflow:hidden}
+  .gcol-h{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0}
+  .gtasks{border-right:1px solid var(--line);min-width:0}
+  .grow2{display:flex;align-items:center;gap:8px;padding:0 12px;height:44px;border-bottom:1px solid var(--line);font-size:13px}
+  .grow2 .tname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .grow2 .tr{color:var(--muted);font-size:11.5px}
+  .gtimeline-wrap{overflow-x:auto}
+  .gtimeline{position:relative}
+  .gaxis{position:relative;height:38px;border-bottom:1px solid var(--line)}
+  .gmonth{position:absolute;top:0;height:38px;border-left:1px solid var(--line);font-size:11px;color:var(--muted);padding:6px 6px;white-space:nowrap}
+  .gline{position:absolute;top:38px;bottom:0;border-left:1px solid var(--line);opacity:.5}
+  .gband{position:relative;height:44px;border-bottom:1px solid var(--line)}
+  .gbar{position:absolute;top:11px;height:22px;border-radius:6px;background:var(--bar-bg);overflow:hidden;cursor:pointer;min-width:6px}
+  .gbar .fill{height:100%;background:var(--bar);border-radius:6px}
+  .gbar .lbl{position:absolute;left:7px;top:0;height:22px;line-height:22px;font-size:11px;color:#fff;mix-blend-mode:normal;white-space:nowrap;pointer-events:none}
+  .ghito{position:absolute;top:11px;width:22px;height:22px;transform:rotate(45deg);background:var(--hito);border-radius:4px;cursor:pointer}
+  .gtoday{position:absolute;top:0;bottom:0;border-left:2px dashed var(--today);opacity:.8;z-index:3}
+  .gtoday .cap{position:absolute;top:2px;left:3px;font-size:10px;color:var(--today);font-weight:700}
+
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  table.links{width:100%;border-collapse:collapse}
+  table.links td,table.links th{padding:9px 14px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}
+  table.links th{font-size:11px;text-transform:uppercase;color:var(--muted)}
+  .tipo{display:inline-block;padding:2px 8px;border-radius:7px;font-size:11px;font-weight:700;background:var(--brand-soft);color:var(--brand-2)}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel);border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+  .m-head{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--line)}
+  .m-head h2{margin:0;font-size:16px}
+  .x{border:none;background:transparent;font-size:22px;cursor:pointer;color:var(--muted)}
+  .m-body{padding:18px;max-height:70vh;overflow:auto}
+  label.f{display:block;font-weight:600;font-size:12.5px;margin:12px 0 5px}
+  label.f:first-child{margin-top:0}
+  .m-body input,.m-body select,.m-body textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;background:var(--panel);color:var(--ink);font-family:inherit}
+  .m-foot{display:flex;gap:10px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--line)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .status{font-size:12.5px;color:var(--muted)} .status.err{color:var(--err)} .status.ok{color:var(--ok)}
+</style>
+</head>
+<body>
+
+<datalist id="usuariosDL"></datalist>
+
+<div class="appbar">
+  <div class="inner">
+    <div class="logo">RQ</div>
+    <div class="brand-t"><b>RQ-IT</b><span>Portal de Proyectos · Gantt</span></div>
+    <div class="grow"></div>
+    <span class="userchip" id="user"><span class="dot"></span><span id="userName">…</span></span>
+    <a class="ghostlink" href="/dashboard.html">Dashboard</a>
+    <a class="ghostlink" href="/index.html">Infraestructura</a>
+    <a class="ghostlink" href="/.auth/logout">Salir</a>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="side">
+    <h2>Proyectos</h2>
+    <div class="plist" id="plist"><div class="empty">Cargando…</div></div>
+    <button class="btn primary block" id="btnNewProj">+ Nuevo proyecto</button>
+  </div>
+
+  <div class="main">
+    <div id="detail"><div class="panel"><div class="empty">Selecciona o crea un proyecto para ver su Gantt.</div></div></div>
+  </div>
+</div>
+
+<!-- Modal proyecto -->
+<div class="modal-bg" id="projModal">
+  <div class="modal">
+    <div class="m-head"><h2 id="projModalTitle">Nuevo proyecto</h2><button class="x" data-close="projModal">×</button></div>
+    <div class="m-body">
+      <input type="hidden" id="p_id">
+      <label class="f">Nombre *</label>
+      <input type="text" id="p_nombre" placeholder="Nombre del proyecto">
+      <label class="f">Responsable</label>
+      <input type="text" id="p_responsable" list="usuariosDL" autocomplete="off" placeholder="Responsable del proyecto">
+      <div class="row2">
+        <div><label class="f">Fecha inicio</label><input type="date" id="p_inicio"></div>
+        <div><label class="f">Fecha fin</label><input type="date" id="p_fin"></div>
+      </div>
+      <label class="f">Estado</label>
+      <select id="p_estado"><option>Activo</option><option>En pausa</option><option>Completado</option><option>Cancelado</option></select>
+      <label class="f">Descripción</label>
+      <textarea id="p_desc" rows="3" placeholder="Descripción / objetivo"></textarea>
+      <div class="status" id="projStatus" style="margin-top:10px"></div>
+    </div>
+    <div class="m-foot"><button class="btn" data-close="projModal">Cancelar</button><button class="btn primary" id="btnSaveProj">Guardar</button></div>
+  </div>
+</div>
+
+<!-- Modal tarea -->
+<div class="modal-bg" id="taskModal">
+  <div class="modal">
+    <div class="m-head"><h2 id="taskModalTitle">Nueva tarea</h2><button class="x" data-close="taskModal">×</button></div>
+    <div class="m-body">
+      <input type="hidden" id="t_id">
+      <label class="f">Nombre *</label>
+      <input type="text" id="t_nombre" placeholder="Nombre de la tarea">
+      <div class="row2">
+        <div><label class="f">Inicio</label><input type="date" id="t_inicio"></div>
+        <div><label class="f">Fin</label><input type="date" id="t_fin"></div>
+      </div>
+      <div class="row2">
+        <div><label class="f">Avance (%)</label><input type="number" id="t_prog" min="0" max="100" step="5" value="0"></div>
+        <div><label class="f">Responsable</label><input type="text" id="t_resp" list="usuariosDL" autocomplete="off"></div>
+      </div>
+      <div class="row2">
+        <div><label class="f">Depende de</label><select id="t_dep"><option value="">— Ninguna —</option></select></div>
+        <div><label class="f">Tipo</label><select id="t_hito"><option value="0">Tarea</option><option value="1">Hito</option></select></div>
+      </div>
+      <div class="status" id="taskStatus" style="margin-top:10px"></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn danger" id="btnDeleteTask" style="margin-right:auto;display:none">Eliminar</button>
+      <button class="btn" data-close="taskModal">Cancelar</button>
+      <button class="btn primary" id="btnSaveTask">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var P_API="/api/proyectos", T_API="/api/proyecto-tareas";
+  var SOL_APIS=[{t:"infra",api:"/api/solicitudes",label:"Infraestructura"},{t:"erp",api:"/api/solicitudes-erp",label:"ERP"},{t:"gen",api:"/api/solicitudes-generales",label:"General"}];
+  var DAYW=13, ROWH=44;
+  var projects=[], current=null, tasks=[];
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function el(id){ return document.getElementById(id); }
+  function parseD(s){ if(!s) return null; var p=String(s).slice(0,10).split('-'); if(p.length<3) { var d=new Date(s); return isNaN(d)?null:d; } return new Date(+p[0],+p[1]-1,+p[2]); }
+  function fmt(d){ if(!d) return ''; return d.toISOString().slice(0,10); }
+  function fmtShort(d){ if(!d) return ''; return d.getDate()+'/'+(d.getMonth()+1); }
+  function dayMs(){ return 86400000; }
+  function addDays(d,n){ var x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+  function daysBetween(a,b){ return Math.round((b.getTime()-a.getTime())/dayMs()); }
+  var MONTHS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  /* usuarios */
+  fetch('/api/usuarios').then(function(r){return r.ok?r.json():null;}).then(function(d){
+    if(!d||!d.ok||!d.items) return;
+    el('usuariosDL').innerHTML=d.items.map(function(u){ var v=String(u.name||'').replace(/"/g,'&quot;'); return '<option value="'+v+'"></option>'; }).join('');
+  }).catch(function(){});
+  fetch('/.auth/me').then(function(r){return r.json();}).then(function(d){ var p=d&&d.clientPrincipal; el('userName').textContent=p?(p.userDetails||'usuario'):'invitado'; }).catch(function(){});
+
+  /* ---- proyectos ---- */
+  function loadProjects(sel){
+    fetch(P_API).then(function(r){ if(r.status===401){ location.href='/.auth/login/aad'; return null; } return r.json(); }).then(function(d){
+      if(!d) return;
+      if(!d.ok){ el('plist').innerHTML='<div class="empty">'+esc(d.error||'Error')+'</div>'; return; }
+      projects=d.items||[];
+      renderProjectList();
+      if(sel){ var f=projects.filter(function(p){return p.Id===sel;})[0]; if(f) selectProject(f); }
+      else if(current){ var c=projects.filter(function(p){return p.Id===current.Id;})[0]; if(c){ current=c; } }
+    }).catch(function(){ el('plist').innerHTML='<div class="empty">Error de red.</div>'; });
+  }
+  function renderProjectList(){
+    if(!projects.length){ el('plist').innerHTML='<div class="empty">Sin proyectos aún.</div>'; return; }
+    el('plist').innerHTML=projects.map(function(p){
+      var act=current&&current.Id===p.Id?' active':'';
+      var rango=(p.FechaInicio?fmt(parseD(p.FechaInicio)):'')+(p.FechaFin?(' → '+fmt(parseD(p.FechaFin))):'');
+      return '<div class="pitem'+act+'" data-id="'+p.Id+'"><b>'+esc(p.Nombre)+'</b><small>'+esc(p.Estado||'')+(rango?(' · '+esc(rango)):'')+'</small></div>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('.pitem'), function(it){
+      it.addEventListener('click', function(){ var id=+it.getAttribute('data-id'); var p=projects.filter(function(x){return x.Id===id;})[0]; if(p) selectProject(p); });
+    });
+  }
+
+  function selectProject(p){
+    current=p; renderProjectList();
+    el('detail').innerHTML='<div class="panel"><div class="empty">Cargando tareas…</div></div>';
+    Promise.all([
+      fetch(T_API+'?proyectoId='+p.Id).then(function(r){return r.json();}).catch(function(){return {ok:false};}),
+      loadLinked(p.Id)
+    ]).then(function(res){
+      tasks=(res[0]&&res[0].ok&&res[0].items)?res[0].items:[];
+      renderDetail(p, res[1]||[]);
+    });
+  }
+
+  function loadLinked(pid){
+    return Promise.all(SOL_APIS.map(function(s){
+      return fetch(s.api+'?proyectoId='+pid).then(function(r){return r.json();}).then(function(d){
+        return (d&&d.ok&&d.items)?d.items.map(function(it){ it._label=s.label; return it; }):[];
+      }).catch(function(){return [];});
+    })).then(function(arrs){ return arrs[0].concat(arrs[1]).concat(arrs[2]); });
+  }
+
+  function renderDetail(p, linked){
+    var rango=(p.FechaInicio?fmt(parseD(p.FechaInicio)):'—')+' → '+(p.FechaFin?fmt(parseD(p.FechaFin)):'—');
+    var html='<div class="phead"><div style="flex:1"><h1>'+esc(p.Nombre)+'</h1>'+
+      '<div class="meta"><span>Estado: '+esc(p.Estado||'—')+'</span><span>Responsable: '+esc(p.Responsable||'—')+'</span><span>'+esc(rango)+'</span></div>'+
+      (p.Descripcion?('<div class="meta"><span>'+esc(p.Descripcion)+'</span></div>'):'')+'</div>'+
+      '<button class="btn sm" id="btnEditProj">Editar</button></div>';
+
+    html+='<div class="panel"><div class="ph"><h3>Cronograma (Gantt)</h3><button class="btn primary sm" id="btnNewTask">+ Nueva tarea</button></div>'+
+      '<div id="ganttArea"></div></div>';
+
+    html+='<div class="panel"><div class="ph"><h3>Solicitudes vinculadas ('+linked.length+')</h3></div>'+ renderLinked(linked) +'</div>';
+
+    el('detail').innerHTML=html;
+    el('btnEditProj').addEventListener('click', function(){ openProjModal(p); });
+    el('btnNewTask').addEventListener('click', function(){ openTaskModal(null); });
+    renderGantt();
+  }
+
+  function renderLinked(linked){
+    if(!linked.length) return '<div class="empty">No hay solicitudes vinculadas a este proyecto.</div>';
+    return '<table class="links"><tr><th>Tipo</th><th>Solicitud</th><th>Estado</th><th>Responsable</th></tr>'+
+      linked.map(function(it){
+        var titulo=it.Titulo||it.Aplicacion||('#'+it.Id);
+        return '<tr><td><span class="tipo">'+esc(it._label)+'</span></td><td>#'+it.Id+' · '+esc(titulo)+'</td><td>'+esc(it.Estado||'')+'</td><td>'+esc(it.Responsable||'—')+'</td></tr>';
+      }).join('')+'</table>';
+  }
+
+  /* ---- Gantt render ---- */
+  function renderGantt(){
+    var area=el('ganttArea');
+    if(!tasks.length){ area.innerHTML='<div class="empty">Sin tareas. Usa «+ Nueva tarea» para empezar.</div>'; return; }
+    // rango de fechas
+    var starts=[], ends=[];
+    tasks.forEach(function(t){ var s=parseD(t.FechaInicio), e=parseD(t.FechaFin)||s; if(s)starts.push(s); if(e)ends.push(e); });
+    if(current.FechaInicio) starts.push(parseD(current.FechaInicio));
+    if(current.FechaFin) ends.push(parseD(current.FechaFin));
+    var today=new Date(); today=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+    starts.push(today); ends.push(today);
+    var min=new Date(Math.min.apply(null,starts.map(function(d){return d.getTime();})));
+    var max=new Date(Math.max.apply(null,ends.map(function(d){return d.getTime();})));
+    min=addDays(min,-3); max=addDays(max,3);
+    var total=Math.max(1,daysBetween(min,max));
+    var width=total*DAYW;
+
+    // eje de meses
+    var axis='', cur=new Date(min.getFullYear(),min.getMonth(),1);
+    while(cur<=max){
+      var off=daysBetween(min,cur); if(off<0) off=0;
+      var left=off*DAYW;
+      axis+='<div class="gmonth" style="left:'+left+'px">'+MONTHS[cur.getMonth()]+' '+cur.getFullYear()+'</div>';
+      axis+='<div class="gline" style="left:'+left+'px"></div>';
+      cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);
+    }
+    var todayLeft=daysBetween(min,today)*DAYW;
+    var todayMark='<div class="gtoday" style="left:'+todayLeft+'px"><span class="cap">hoy</span></div>';
+
+    // filas de nombres
+    var names=tasks.map(function(t){
+      return '<div class="grow2" data-id="'+t.Id+'"><span class="tname" title="'+esc(t.Nombre)+'">'+(t.EsHito?'◆ ':'')+esc(t.Nombre)+'</span><span class="tr">'+((t.Progreso!=null&&!t.EsHito)?(t.Progreso+'%'):'')+'</span></div>';
+    }).join('');
+
+    // bandas/barras
+    var bands=tasks.map(function(t){
+      var s=parseD(t.FechaInicio), e=parseD(t.FechaFin)||s;
+      var inner='';
+      if(s){
+        var left=daysBetween(min,s)*DAYW;
+        if(t.EsHito){
+          inner='<div class="ghito" data-id="'+t.Id+'" style="left:'+(left-8)+'px" title="'+esc(t.Nombre)+'"></div>';
+        } else {
+          var dur=Math.max(1,(e?daysBetween(s,e):0)+1);
+          var w=dur*DAYW; var prog=Math.max(0,Math.min(100,t.Progreso||0));
+          inner='<div class="gbar" data-id="'+t.Id+'" style="left:'+left+'px;width:'+w+'px"><div class="fill" style="width:'+prog+'%"></div><span class="lbl">'+esc(t.Nombre)+'</span></div>';
+        }
+      }
+      return '<div class="gband" style="width:'+width+'px">'+inner+'</div>';
+    }).join('');
+
+    area.innerHTML='<div class="gantt">'+
+      '<div class="gtasks"><div class="gcol-h">Tarea</div>'+names+'</div>'+
+      '<div class="gtimeline-wrap"><div class="gtimeline" style="width:'+width+'px">'+
+        '<div class="gaxis">'+axis+todayMark+'</div>'+
+        '<div style="position:relative">'+bands+
+          '<div class="gtoday" style="left:'+todayLeft+'px"></div>'+
+        '</div>'+
+      '</div></div>'+
+    '</div>';
+
+    // click en barras/hitos/filas -> editar
+    Array.prototype.forEach.call(area.querySelectorAll('.gbar,.ghito,.grow2'), function(node){
+      node.addEventListener('click', function(){ var id=+node.getAttribute('data-id'); var t=tasks.filter(function(x){return x.Id===id;})[0]; if(t) openTaskModal(t); });
+    });
+  }
+
+  /* ---- modales ---- */
+  function openModal(id){ el(id).classList.add('show'); }
+  function closeModal(id){ el(id).classList.remove('show'); }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function(b){ b.addEventListener('click', function(){ closeModal(b.getAttribute('data-close')); }); });
+  Array.prototype.forEach.call(document.querySelectorAll('.modal-bg'), function(m){ m.addEventListener('click', function(e){ if(e.target===m) m.classList.remove('show'); }); });
+
+  function openProjModal(p){
+    el('projModalTitle').textContent = p?'Editar proyecto':'Nuevo proyecto';
+    el('p_id').value=p?p.Id:''; el('p_nombre').value=p?p.Nombre:''; el('p_responsable').value=p?(p.Responsable||''):'';
+    el('p_inicio').value=p&&p.FechaInicio?fmt(parseD(p.FechaInicio)):''; el('p_fin').value=p&&p.FechaFin?fmt(parseD(p.FechaFin)):'';
+    el('p_estado').value=p?(p.Estado||'Activo'):'Activo'; el('p_desc').value=p?(p.Descripcion||''):'';
+    el('projStatus').textContent=''; openModal('projModal');
+  }
+  el('btnNewProj').addEventListener('click', function(){ openProjModal(null); });
+  el('btnSaveProj').addEventListener('click', function(){
+    var id=el('p_id').value, nombre=el('p_nombre').value.trim();
+    if(!nombre){ el('projStatus').textContent='El nombre es obligatorio.'; el('projStatus').className='status err'; return; }
+    var body={ nombre:nombre, responsable:el('p_responsable').value.trim(), fechaInicio:el('p_inicio').value||null, fechaFin:el('p_fin').value||null, estado:el('p_estado').value, descripcion:el('p_desc').value.trim() };
+    el('projStatus').textContent='Guardando…'; el('projStatus').className='status';
+    var url=id?(P_API+'/'+id):P_API, method=id?'PATCH':'POST';
+    fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,d:d};});})
+      .then(function(res){
+        if(res.ok&&res.d&&res.d.ok){ closeModal('projModal'); loadProjects(id?+id:res.d.id); }
+        else { el('projStatus').textContent='✗ '+((res.d&&res.d.error)||'Error'); el('projStatus').className='status err'; }
+      }).catch(function(){ el('projStatus').textContent='✗ Sin conexión'; el('projStatus').className='status err'; });
+  });
+
+  function openTaskModal(t){
+    el('taskModalTitle').textContent = t?'Editar tarea':'Nueva tarea';
+    el('t_id').value=t?t.Id:''; el('t_nombre').value=t?t.Nombre:'';
+    el('t_inicio').value=t&&t.FechaInicio?fmt(parseD(t.FechaInicio)):''; el('t_fin').value=t&&t.FechaFin?fmt(parseD(t.FechaFin)):'';
+    el('t_prog').value=t?(t.Progreso||0):0; el('t_resp').value=t?(t.Responsable||''):'';
+    el('t_hito').value=t&&t.EsHito?'1':'0';
+    // dependencias
+    var dep=el('t_dep'); dep.innerHTML='<option value="">— Ninguna —</option>'+tasks.filter(function(x){return !t||x.Id!==t.Id;}).map(function(x){return '<option value="'+x.Id+'"'+((t&&t.DependenciaId===x.Id)?' selected':'')+'>'+esc(x.Nombre)+'</option>';}).join('');
+    el('btnDeleteTask').style.display = t?'inline-block':'none';
+    el('taskStatus').textContent=''; openModal('taskModal');
+  }
+  el('btnSaveTask').addEventListener('click', function(){
+    var id=el('t_id').value, nombre=el('t_nombre').value.trim();
+    if(!nombre){ el('taskStatus').textContent='El nombre es obligatorio.'; el('taskStatus').className='status err'; return; }
+    var body={ proyectoId:current.Id, nombre:nombre, fechaInicio:el('t_inicio').value||null, fechaFin:el('t_fin').value||null,
+      progreso:parseInt(el('t_prog').value||'0',10), responsable:el('t_resp').value.trim(),
+      dependenciaId:el('t_dep').value||null, esHito:el('t_hito').value==='1' };
+    el('taskStatus').textContent='Guardando…'; el('taskStatus').className='status';
+    var url=id?(T_API+'/'+id):T_API, method=id?'PATCH':'POST';
+    fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,d:d};});})
+      .then(function(res){ if(res.ok&&res.d&&res.d.ok){ closeModal('taskModal'); selectProject(current); } else { el('taskStatus').textContent='✗ '+((res.d&&res.d.error)||'Error'); el('taskStatus').className='status err'; } })
+      .catch(function(){ el('taskStatus').textContent='✗ Sin conexión'; el('taskStatus').className='status err'; });
+  });
+  el('btnDeleteTask').addEventListener('click', function(){
+    var id=el('t_id').value; if(!id) return;
+    if(!confirm('¿Eliminar esta tarea?')) return;
+    fetch(T_API+'/'+id,{method:'DELETE'}).then(function(r){return r.json().catch(function(){return {};});})
+      .then(function(){ closeModal('taskModal'); selectProject(current); }).catch(function(){});
+  });
+
+  loadProjects();
+})();
+</script>
+</body>
+</html>
