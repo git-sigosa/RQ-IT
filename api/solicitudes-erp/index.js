@@ -152,6 +152,23 @@ async function handleCreate(context, req, respond) {
   }
 }
 
+async function handleGetOne(context, req, respond) {
+  const id = parseInt(req.params.id, 10);
+  if (!id || isNaN(id)) return respond(400, { ok: false, error: 'Id inválido.' });
+  try {
+    const pool = await getPool();
+    const r = pool.request();
+    r.input('Id', sql.Int, id);
+    const result = await r.query('SELECT * FROM dbo.SolicitudesERP WHERE Id = @Id');
+    const row = result.recordset && result.recordset[0];
+    if (!row) return respond(404, { ok: false, error: 'Solicitud no encontrada.' });
+    return respond(200, { ok: true, item: row });
+  } catch (err) {
+    context.log.error('ERP detalle error: ' + err.message);
+    return respond(500, { ok: false, error: 'No se pudo obtener el detalle.', debug: { message: err.message } });
+  }
+}
+
 module.exports = async function (context, req) {
   const respond = function (status, obj) {
     context.res = { status: status, headers: { 'Content-Type': 'application/json' }, body: obj };
@@ -163,7 +180,7 @@ module.exports = async function (context, req) {
   }
 
   const method = (req.method || 'POST').toUpperCase();
-  if (method === 'GET')   { return await handleList(context, req, respond); }
+  if (method === 'GET')   { return (req.params && req.params.id) ? await handleGetOne(context, req, respond) : await handleList(context, req, respond); }
   if (method === 'PATCH') { return await handleUpdate(context, req, respond); }
   return await handleCreate(context, req, respond);
 };

@@ -115,7 +115,23 @@
   .spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
   @keyframes spin{to{transform:rotate(360deg)}}
   .err-txt{color:var(--err)}
-  @media (max-width:640px){ .wrap{padding:14px} .appbar .inner{padding:10px 14px} .brand-t span{display:none} }
+  .title.clickable{cursor:pointer}
+  .title.clickable:hover{color:var(--brand-2);text-decoration:underline}
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:60}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:660px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);max-height:88vh;display:flex;flex-direction:column}
+  .m-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .m-head h2{margin:0;font-size:16px}
+  .m-head .x{border:none;background:transparent;font-size:22px;cursor:pointer;color:var(--muted)}
+  .m-body{padding:18px 20px;overflow:auto}
+  .dsec{margin:0 0 18px}
+  .dsec h4{margin:0 0 9px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--brand-2);font-weight:700}
+  .dkv{display:grid;grid-template-columns:200px 1fr;gap:7px 14px;font-size:13px}
+  .dkv .k{color:var(--muted)} .dkv .v{word-break:break-word}
+  .dtable{width:100%;border-collapse:collapse;margin-top:4px;font-size:12.5px}
+  .dtable th,.dtable td{border:1px solid var(--line);padding:5px 8px;text-align:left}
+  .dtable th{color:var(--muted);font-weight:700}
+  @media (max-width:640px){ .wrap{padding:14px} .appbar .inner{padding:10px 14px} .brand-t span{display:none} .dkv{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -195,6 +211,13 @@
   </div>
 </div>
 
+<div class="modal-bg" id="detailModal">
+  <div class="modal">
+    <div class="m-head"><h2 id="detailTitle">Detalle de la solicitud</h2><button class="x" id="detailClose">×</button></div>
+    <div class="m-body" id="detailBody"></div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -213,6 +236,56 @@
   function pill(e){ var c=colorOf(e); return '<span class="pill" style="color:'+c[0]+';background:'+c[1]+'"><span class="d" style="background:'+c[0]+'"></span>'+esc(e||'—')+'</span>'; }
   function crit(c){ if(!c) return '—'; var col=CRIT[c]||["#475569","rgba(100,116,139,.14)"]; return '<span class="crit" style="color:'+col[0]+';background:'+col[1]+'">'+esc(c)+'</span>'; }
   function chips(csv){ if(!csv) return '—'; return String(csv).split(/\s*,\s*/).filter(Boolean).map(function(m){return '<span class="chip">'+esc(m)+'</span>';}).join(''); }
+  function fmtDateTime(v){ if(!v) return ''; var d=new Date(v); return isNaN(d)?'' : d.toISOString().slice(0,16).replace('T',' '); }
+
+  /* ---------- Detalle de solicitud ---------- */
+  function humanize(k){ return String(k).replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
+  function isEmpty(v){ return v==null || v==='' || (Array.isArray(v)&&!v.length) || (typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length); }
+  function kv(k,v){ return '<div class="k">'+esc(k)+'</div><div class="v">'+((v==null||v==='')?'<span style="color:var(--muted)">—</span>':esc(String(v)))+'</div>'; }
+  function renderVal(v){
+    if(v==null||v==='') return '—';
+    if(Array.isArray(v)){
+      if(!v.length) return '—';
+      if(typeof v[0]==='object'){
+        var cols=Object.keys(v[0]);
+        return '<table class="dtable"><tr>'+cols.map(function(c){return '<th>'+esc(humanize(c))+'</th>';}).join('')+'</tr>'+
+          v.map(function(o){return '<tr>'+cols.map(function(c){return '<td>'+esc(o[c]==null?'':o[c])+'</td>';}).join('')+'</tr>';}).join('')+'</table>';
+      }
+      return esc(v.join(', '));
+    }
+    if(typeof v==='object'){
+      return '<div class="dkv">'+Object.keys(v).filter(function(k){return !isEmpty(v[k]);}).map(function(k){ return '<div class="k">'+esc(humanize(k))+'</div><div class="v">'+renderVal(v[k])+'</div>'; }).join('')+'</div>';
+    }
+    return esc(String(v));
+  }
+  function renderDetail(item){
+    var payload={}; try{ payload=item.PayloadJson?JSON.parse(item.PayloadJson):{}; }catch(e){}
+    var out='<div class="dsec"><h4>Seguimiento</h4><div class="dkv">'+
+      kv('Id','#'+item.Id)+kv('Registrada',fmtDateTime(item.FechaRegistro))+kv('Estado',item.Estado)+
+      kv('Responsable',item.Responsable)+kv('Fecha entrega',fmtDate(item.FechaEntrega))+'</div></div>';
+    var simple=[], complex='';
+    Object.keys(payload).forEach(function(k){
+      var v=payload[k]; if(isEmpty(v)) return;
+      if(v && typeof v==='object'){
+        if(Array.isArray(v) && typeof v[0]!=='object'){ simple.push([k, v.join(', ')]); }
+        else { complex+='<div class="dsec"><h4>'+esc(humanize(k))+'</h4>'+renderVal(v)+'</div>'; }
+      } else { simple.push([k, v]); }
+    });
+    if(simple.length){ out+='<div class="dsec"><h4>Datos de la solicitud</h4><div class="dkv">'+simple.map(function(p){return kv(humanize(p[0]),p[1]);}).join('')+'</div></div>'; }
+    return out+complex;
+  }
+  function openDetail(it){
+    document.getElementById('detailTitle').textContent = (it.Titulo||it.Aplicacion||('#'+it.Id));
+    document.getElementById('detailBody').innerHTML='<div class="state"><div class="spinner"></div>Cargando…</div>';
+    document.getElementById('detailModal').classList.add('show');
+    fetch(API[it._tipo]+'/'+it.Id).then(function(r){ return r.json(); }).then(function(d){
+      if(!d||!d.ok){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">'+esc((d&&d.error)||'No se pudo cargar el detalle')+'</div>'; return; }
+      document.getElementById('detailTitle').textContent = (d.item.Titulo||d.item.Aplicacion||('#'+d.item.Id));
+      document.getElementById('detailBody').innerHTML=renderDetail(d.item);
+    }).catch(function(){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">Error de red al cargar el detalle.</div>'; });
+  }
+  document.getElementById('detailClose').addEventListener('click', function(){ document.getElementById('detailModal').classList.remove('show'); });
+  document.getElementById('detailModal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
 
   var DATA = { infra:[], erp:[], gen:[] };
   var scope = "all";
@@ -342,6 +415,8 @@
   }
 
   function bindRow(tr, it){
+    var titleEl=tr.querySelector('.title');
+    if(titleEl){ titleEl.classList.add('clickable'); titleEl.title='Ver detalle'; titleEl.addEventListener('click', function(){ openDetail(it); }); }
     var sel=tr.querySelector('.e-estado');
     sel.addEventListener('change', function(){ var p=tr.querySelector('.pill'),c=colorOf(sel.value); p.style.color=c[0];p.style.background=c[1]; p.innerHTML='<span class="d" style="background:'+c[0]+'"></span>'+esc(sel.value); });
     tr.querySelector('.e-save').addEventListener('click', function(){
