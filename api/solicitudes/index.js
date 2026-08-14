@@ -74,8 +74,10 @@ async function handleList(context, req, respond) {
     const request = pool.request();
     const estado = req.query ? (req.query.estado || '') : '';
     const q = req.query ? (req.query.q || '') : '';
+    const proyectoId = req.query ? (req.query.proyectoId || '') : '';
     const where = [];
     if (estado) { request.input('estado', sql.NVarChar(50), estado); where.push('Estado = @estado'); }
+    if (proyectoId) { request.input('pid', sql.Int, parseInt(proyectoId, 10)); where.push('ProyectoId = @pid'); }
     if (q) {
       request.input('q', sql.NVarChar(200), '%' + q + '%');
       where.push('(Aplicacion LIKE @q OR Proyecto LIKE @q OR Titulo LIKE @q OR Identificador LIKE @q)');
@@ -225,6 +227,7 @@ module.exports = async function (context, req) {
     request.input('RequiereDR',             sql.NVarChar(5),   str(cr.requiere_dr, 5));
     request.input('Estado',                 sql.NVarChar(50),  str(cr.estado, 50));
 
+    request.input('ProyectoId',             sql.Int, toInt(model.proyecto_id));
     request.input('PayloadJson',            sql.NVarChar(sql.MAX), JSON.stringify(model));
 
     const result = await request.query(
@@ -233,14 +236,14 @@ module.exports = async function (context, req) {
       'ArquitecturaDespliegue, FrontEnd, BackendAPI, CPURequerida, RAMRequeridaGB, ' +
       'BaseDatos, ModeloDespliegueBD, StorageGB, CrecimientoMensualGB, ' +
       'DominioPublico, TipoAcceso, MetodoAutenticacion, NivelSensibilidad, ' +
-      'Ambiente, UsuariosConcurrentes, Criticidad, RequiereHA, RequiereDR, Estado, PayloadJson) ' +
+      'Ambiente, UsuariosConcurrentes, Criticidad, RequiereHA, RequiereDR, Estado, ProyectoId, PayloadJson) ' +
       'OUTPUT INSERTED.Id ' +
       'VALUES (' +
       '@Titulo, @Aplicacion, @Identificador, @Proyecto, @LiderProyecto, @FechaProduccion, @Funcionalidad, ' +
       '@ArquitecturaDespliegue, @FrontEnd, @BackendAPI, @CPURequerida, @RAMRequeridaGB, ' +
       '@BaseDatos, @ModeloDespliegueBD, @StorageGB, @CrecimientoMensualGB, ' +
       '@DominioPublico, @TipoAcceso, @MetodoAutenticacion, @NivelSensibilidad, ' +
-      '@Ambiente, @UsuariosConcurrentes, @Criticidad, @RequiereHA, @RequiereDR, @Estado, @PayloadJson)'
+      '@Ambiente, @UsuariosConcurrentes, @Criticidad, @RequiereHA, @RequiereDR, @Estado, @ProyectoId, @PayloadJson)'
     );
 
     const newId = result.recordset && result.recordset[0] ? result.recordset[0].Id : null;

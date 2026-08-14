@@ -56,8 +56,10 @@ async function handleList(context, req, respond) {
     const request = pool.request();
     const estado = req.query ? (req.query.estado || '') : '';
     const q = req.query ? (req.query.q || '') : '';
+    const proyectoId = req.query ? (req.query.proyectoId || '') : '';
     const where = [];
     if (estado) { request.input('estado', sql.NVarChar(50), estado); where.push('Estado = @estado'); }
+    if (proyectoId) { request.input('pid', sql.Int, parseInt(proyectoId, 10)); where.push('ProyectoId = @pid'); }
     if (q) {
       request.input('q', sql.NVarChar(200), '%' + q + '%');
       where.push('(Titulo LIKE @q OR Solicitante LIKE @q OR Area LIKE @q OR Modulos LIKE @q)');
@@ -136,13 +138,16 @@ async function handleCreate(context, req, respond) {
     request.input('FabricDetalle', sql.NVarChar(sql.MAX), str(model.fabric_detalle));
     request.input('Prioridad', sql.NVarChar(20), str(model.prioridad, 20));
     request.input('Estado', sql.NVarChar(50), str(model.estado, 50) || 'Nuevo');
+    var pid = (model.proyecto_id != null && model.proyecto_id !== '') ? parseInt(model.proyecto_id, 10) : null;
+    if (isNaN(pid)) pid = null;
+    request.input('ProyectoId', sql.Int, pid);
     request.input('PayloadJson', sql.NVarChar(sql.MAX), JSON.stringify(model));
 
     const result = await request.query(
       'INSERT INTO dbo.SolicitudesERP ' +
-      '(Titulo, Solicitante, Area, Descripcion, Modulos, Procesos, TransformarFabric, FabricDetalle, Prioridad, Estado, PayloadJson) ' +
+      '(Titulo, Solicitante, Area, Descripcion, Modulos, Procesos, TransformarFabric, FabricDetalle, Prioridad, Estado, ProyectoId, PayloadJson) ' +
       'OUTPUT INSERTED.Id ' +
-      'VALUES (@Titulo, @Solicitante, @Area, @Descripcion, @Modulos, @Procesos, @TransformarFabric, @FabricDetalle, @Prioridad, @Estado, @PayloadJson)'
+      'VALUES (@Titulo, @Solicitante, @Area, @Descripcion, @Modulos, @Procesos, @TransformarFabric, @FabricDetalle, @Prioridad, @Estado, @ProyectoId, @PayloadJson)'
     );
     const newId = result.recordset && result.recordset[0] ? result.recordset[0].Id : null;
     return respond(201, { ok: true, id: newId });

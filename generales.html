@@ -80,6 +80,7 @@
     <a class="ghostlink" href="/index.html">Infraestructura</a>
     <a class="ghostlink" href="/erp.html">ERP</a>
     <a class="ghostlink" href="/dashboard.html">Dashboard</a>
+    <a class="ghostlink" href="/gantt.html">Proyectos</a>
   </div>
 </div>
 
@@ -108,6 +109,9 @@
         <label class="field" for="prioridad">Prioridad</label>
         <select id="prioridad"><option>Media</option><option>Alta</option><option>Baja</option></select>
       </div>
+      <label class="field" for="proyecto">Proyecto <span class="hint">— elige uno existente o escribe uno nuevo para crearlo</span></label>
+      <input type="text" id="proyecto" list="proyectosDL" autocomplete="off" placeholder="Nombre del proyecto (opcional)">
+      <datalist id="proyectosDL"></datalist>
     </div>
 
     <div class="card">
@@ -171,6 +175,22 @@
       dl.innerHTML=d.items.map(function(u){ var v=String(u.name||'').replace(/"/g,'&quot;'); var lbl=String(u.email||'').replace(/"/g,'&quot;'); return '<option value="'+v+'"'+(lbl?(' label="'+lbl+'"'):'')+'></option>'; }).join('');
     }).catch(function(){});
   })();
+
+  /* proyectos del portal (elegir o crear) */
+  var PROY_MAP={};
+  (function(){
+    fetch('/api/proyectos').then(function(r){return r.ok?r.json():null;}).then(function(d){
+      if(!d||!d.ok||!d.items) return;
+      var dl=document.getElementById('proyectosDL'); PROY_MAP={};
+      d.items.forEach(function(p){ PROY_MAP[String(p.Nombre).toLowerCase()]=p.Id; });
+      if(dl) dl.innerHTML=d.items.map(function(p){return '<option value="'+String(p.Nombre).replace(/"/g,'&quot;')+'"></option>';}).join('');
+    }).catch(function(){});
+  })();
+  function resolveProyectoId(name){
+    name=(name||'').trim(); if(!name) return Promise.resolve(null);
+    var f=PROY_MAP[name.toLowerCase()]; if(f) return Promise.resolve(f);
+    return fetch('/api/proyectos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:name})}).then(function(r){return r.json();}).then(function(d){ if(d&&d.ok){ PROY_MAP[name.toLowerCase()]=d.id; return d.id; } return null; }).catch(function(){return null;});
+  }
 
   Array.prototype.forEach.call(document.querySelectorAll('.mod input'), function(cb){
     cb.addEventListener('change', function(){ cb.closest('.mod').classList.toggle('on', cb.checked); });
@@ -238,7 +258,7 @@
     function onStatus(msg,cls){ st.textContent=msg; st.className='status'+(cls?(' '+cls):''); }
     if(!lastModel){ onStatus('Revisa la solicitud primero.', 'err'); return; }
     onStatus('Guardando…','');
-    fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({model:lastModel})})
+    resolveProyectoId(val('proyecto')).then(function(pid){ lastModel.proyecto_id=pid; return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({model:lastModel})}); })
       .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok,d:d}; }); })
       .then(function(res){
         if(res.ok && res.d && res.d.ok){ onStatus('✓ Solicitud enviada (Id '+(res.d.id!=null?res.d.id:'—')+').', 'ok'); }

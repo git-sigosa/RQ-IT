@@ -183,6 +183,7 @@
       <a href="/erp.html" style="text-decoration:none;font-size:13px;font-weight:600;color:#6d28d9;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:9px;padding:8px 13px">Solicitud ERP</a>
       <a href="/generales.html" style="text-decoration:none;font-size:13px;font-weight:600;color:#6d28d9;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:9px;padding:8px 13px">Solicitud General</a>
       <a href="/dashboard.html" style="text-decoration:none;font-size:13px;font-weight:600;color:#6d28d9;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:9px;padding:8px 13px">Dashboard</a>
+      <a href="/gantt.html" style="text-decoration:none;font-size:13px;font-weight:600;color:#6d28d9;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:9px;padding:8px 13px">Proyectos (Gantt)</a>
     </div>
   </header>
 
@@ -213,8 +214,9 @@
             <div class="err-msg">Este campo es obligatorio.</div>
           </div>
           <div>
-            <label class="field" for="proyecto">Proyecto</label>
-            <input type="text" id="proyecto" placeholder="Nombre del proyecto o iniciativa">
+            <label class="field" for="proyecto">Proyecto <span class="hint">Elige uno existente o escribe uno nuevo para crearlo.</span></label>
+            <input type="text" id="proyecto" list="proyectosDL" autocomplete="off" placeholder="Nombre del proyecto o iniciativa">
+            <datalist id="proyectosDL"></datalist>
           </div>
           <div>
             <label class="field" for="lider_tecnico">Líder del Proyecto / Responsable Técnico<span class="req">*</span></label>
@@ -575,6 +577,28 @@
   }
   loadUsuarios();
 
+  /* Proyectos: llenar datalist y resolver/crear al enviar */
+  var PROY_MAP = {};
+  function loadProyectos(){
+    fetch('/api/proyectos').then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.ok || !d.items) return;
+      PROY_MAP = {};
+      var dl = document.getElementById('proyectosDL');
+      d.items.forEach(function(p){ PROY_MAP[String(p.Nombre).toLowerCase()] = p.Id; });
+      if(dl) dl.innerHTML = d.items.map(function(p){ return '<option value="'+String(p.Nombre).replace(/"/g,'&quot;')+'"></option>'; }).join('');
+    }).catch(function(){});
+  }
+  loadProyectos();
+  function resolveProyectoId(name){
+    name = (name||'').trim();
+    if(!name) return Promise.resolve(null);
+    var found = PROY_MAP[name.toLowerCase()];
+    if(found) return Promise.resolve(found);
+    return fetch('/api/proyectos', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nombre:name})})
+      .then(function(r){ return r.json(); }).then(function(d){ if(d&&d.ok){ PROY_MAP[name.toLowerCase()]=d.id; return d.id; } return null; })
+      .catch(function(){ return null; });
+  }
+
   var secrets = [];
 
   /* ---------- Services ---------- */
@@ -873,18 +897,21 @@
     if(!url){ onStatus('No hay endpoint de API configurado.', 'err'); return; }
     if(!lastModel){ onStatus('Genera la solicitud primero.', 'err'); return; }
     onStatus('Guardando en SQL Server…', '');
-    var payload = { model: lastModel, sharepoint_row: buildSharePointRow(lastModel) };
-    return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
-      .then(function(r){
-        return r.json().catch(function(){ return {}; }).then(function(data){
-          if(r.ok && data && data.ok){
-            onStatus('✓ Guardado en SQL Server (Id ' + (data.id!=null?data.id:'—') + ').', 'ok');
-          } else {
-            onStatus('No se pudo guardar: ' + ((data && data.error) || ('estado ' + r.status)) + '.', 'err');
-          }
-        });
-      })
-      .catch(function(e){ onStatus('No se pudo conectar con la API de guardado.', 'err'); });
+    return resolveProyectoId(val('proyecto')).then(function(pid){
+      lastModel.proyecto_id = pid;
+      var payload = { model: lastModel, sharepoint_row: buildSharePointRow(lastModel) };
+      return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
+        .then(function(r){
+          return r.json().catch(function(){ return {}; }).then(function(data){
+            if(r.ok && data && data.ok){
+              onStatus('✓ Guardado en SQL Server (Id ' + (data.id!=null?data.id:'—') + ').', 'ok');
+            } else {
+              onStatus('No se pudo guardar: ' + ((data && data.error) || ('estado ' + r.status)) + '.', 'err');
+            }
+          });
+        })
+        .catch(function(e){ onStatus('No se pudo conectar con la API de guardado.', 'err'); });
+    });
   }
 
   document.getElementById('btnGenerate').addEventListener('click', function(){
