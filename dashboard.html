@@ -131,6 +131,16 @@
   .dtable{width:100%;border-collapse:collapse;margin-top:4px;font-size:12.5px}
   .dtable th,.dtable td{border:1px solid var(--line);padding:5px 8px;text-align:left}
   .dtable th{color:var(--muted);font-weight:700}
+  .notas{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .nota-item{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--bg)}
+  .nota-meta{font-size:11.5px;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .nota-body{font-size:13px;white-space:pre-wrap;word-break:break-word}
+  .nota-del{margin-left:auto;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+  .nota-del:hover{color:var(--err)}
+  .nota-add textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:13px;background:var(--panel);color:var(--ink);font-family:inherit;resize:vertical}
+  .nota-add textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(124,58,237,.14)}
+  .nota-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .nota-row input[type=date]{padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font-size:12.5px}
   @media (max-width:640px){ .wrap{padding:14px} .appbar .inner{padding:10px 14px} .brand-t span{display:none} .dkv{grid-template-columns:1fr} }
 </style>
 </head>
@@ -214,7 +224,7 @@
 
 <div class="modal-bg" id="detailModal">
   <div class="modal">
-    <div class="m-head"><h2 id="detailTitle">Detalle de la solicitud</h2><button class="x" id="detailClose">×</button></div>
+    <div class="m-head"><h2 id="detailTitle">Detalle de la solicitud</h2><div style="display:flex;gap:8px;align-items:center"><button class="btn" id="detailPdf" style="padding:6px 12px;font-size:12.5px">Descargar PDF</button><button class="x" id="detailClose">×</button></div></div>
     <div class="m-body" id="detailBody"></div>
   </div>
 </div>
@@ -275,16 +285,88 @@
     if(simple.length){ out+='<div class="dsec"><h4>Datos de la solicitud</h4><div class="dkv">'+simple.map(function(p){return kv(humanize(p[0]),p[1]);}).join('')+'</div></div>'; }
     return out+complex;
   }
+  /* ---- Notas / Avances ---- */
+  var detailIt=null, detailData=null, detailNotas=[];
+  function notesUI(){
+    return '<div class="dsec"><h4>Notas / Avances</h4>'+
+      '<div id="notasList" class="notas"><div class="state" style="padding:12px">Cargando…</div></div>'+
+      '<div class="nota-add">'+
+        '<textarea id="notaText" rows="2" placeholder="Escribe un avance… (ej. Se dieron accesos, se asignaron recursos, está dando error)"></textarea>'+
+        '<div class="nota-row"><input type="date" id="notaFecha" title="Fecha del avance (opcional)"><button class="btn primary sm" id="notaAdd" style="padding:7px 12px">Agregar</button><span class="save-msg" id="notaMsg"></span></div>'+
+      '</div></div>';
+  }
+  function renderNotas(items){
+    if(!items.length) return '<div class="state" style="padding:12px">Sin notas aún. Agrega el primer avance abajo.</div>';
+    return items.map(function(n){
+      return '<div class="nota-item"><div class="nota-meta"><span>'+esc(fmtDateTime(n.Fecha))+(n.Autor?(' · '+esc(n.Autor)):'')+'</span><button class="nota-del" data-id="'+n.Id+'" title="Eliminar">×</button></div><div class="nota-body">'+esc(n.Nota)+'</div></div>';
+    }).join('');
+  }
+  function loadNotas(){
+    if(!detailIt) return;
+    var box=document.getElementById('notasList'); if(!box) return;
+    fetch('/api/notas?tipo='+encodeURIComponent(detailIt.tipo)+'&solicitudId='+detailIt.id)
+      .then(function(r){ return r.json(); }).then(function(d){
+        if(!d||!d.ok){ box.innerHTML='<div class="state err-txt" style="padding:12px">'+esc((d&&d.error)||'No se pudieron cargar las notas')+'</div>'; return; }
+        detailNotas=d.items||[];
+        box.innerHTML=renderNotas(detailNotas);
+        Array.prototype.forEach.call(box.querySelectorAll('.nota-del'), function(b){
+          b.addEventListener('click', function(){ if(!confirm('¿Eliminar esta nota?')) return; fetch('/api/notas/'+b.getAttribute('data-id'),{method:'DELETE'}).then(function(){ loadNotas(); }).catch(function(){}); });
+        });
+      }).catch(function(){ box.innerHTML='<div class="state err-txt" style="padding:12px">Error de red.</div>'; });
+  }
+  function bindNotas(){
+    var btn=document.getElementById('notaAdd'); if(!btn) return;
+    btn.addEventListener('click', function(){
+      var t=document.getElementById('notaText'), msg=document.getElementById('notaMsg');
+      var txt=t.value.trim(); if(!txt){ msg.textContent='Escribe algo.'; msg.className='save-msg err'; return; }
+      btn.disabled=true; msg.textContent='Guardando…'; msg.className='save-msg';
+      var body={ tipo:detailIt.tipo, solicitudId:detailIt.id, nota:txt, autor:currentUser, fecha:(document.getElementById('notaFecha').value||null) };
+      fetch('/api/notas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,d:d};}); })
+        .then(function(res){ btn.disabled=false;
+          if(res.ok&&res.d&&res.d.ok){ t.value=''; document.getElementById('notaFecha').value=''; msg.textContent=''; loadNotas(); }
+          else { msg.textContent='✗ '+((res.d&&res.d.error)||'Error'); msg.className='save-msg err'; }
+        }).catch(function(){ btn.disabled=false; msg.textContent='✗ Sin conexión'; msg.className='save-msg err'; });
+    });
+  }
+
   function openDetail(it){
     document.getElementById('detailTitle').textContent = (it.Titulo||it.Aplicacion||('#'+it.Id));
     document.getElementById('detailBody').innerHTML='<div class="state"><div class="spinner"></div>Cargando…</div>';
     document.getElementById('detailModal').classList.add('show');
+    detailIt=null;
     fetch(API[it._tipo]+'/'+it.Id).then(function(r){ return r.json(); }).then(function(d){
       if(!d||!d.ok){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">'+esc((d&&d.error)||'No se pudo cargar el detalle')+'</div>'; return; }
       document.getElementById('detailTitle').textContent = (d.item.Titulo||d.item.Aplicacion||('#'+d.item.Id));
-      document.getElementById('detailBody').innerHTML=renderDetail(d.item);
+      detailIt={ tipo: it._tipo, id: d.item.Id }; detailData=d.item; detailNotas=[];
+      document.getElementById('detailBody').innerHTML=renderDetail(d.item)+notesUI();
+      bindNotas(); loadNotas();
     }).catch(function(){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">Error de red al cargar el detalle.</div>'; });
   }
+  function buildDetailPrintHTML(item, notas){
+    var title=item.Titulo||item.Aplicacion||('#'+item.Id);
+    var notasHtml = (notas && notas.length) ? notas.map(function(n){ return '<div class="nota"><div class="m">'+esc(fmtDateTime(n.Fecha))+(n.Autor?(' · '+esc(n.Autor)):'')+'</div><div>'+esc(n.Nota)+'</div></div>'; }).join('') : '<div style="color:#64748b">Sin notas registradas.</div>';
+    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>'+
+      'body{font-family:Segoe UI,Arial,sans-serif;color:#1e293b;margin:28px;font-size:12.5px}'+
+      'h1{font-size:19px;margin:0 0 10px}'+
+      '.dsec{margin:0 0 14px}.dsec h4{font-size:12px;color:#6d28d9;text-transform:uppercase;letter-spacing:.04em;margin:16px 0 7px;border-bottom:1px solid #ede9fe;padding-bottom:3px}'+
+      '.dkv{display:grid;grid-template-columns:210px 1fr;gap:5px 12px;font-size:12px}.dkv .k{color:#64748b}'+
+      'table.dtable{border-collapse:collapse;width:100%;margin-top:4px}table.dtable th,table.dtable td{border:1px solid #cbd5e1;padding:5px 8px;text-align:left;font-size:11.5px}table.dtable th{color:#64748b}'+
+      '.nota{border:1px solid #cbd5e1;border-radius:7px;padding:8px 10px;margin-bottom:6px}.nota .m{color:#64748b;font-size:11px;margin-bottom:3px}'+
+      '@media print{body{margin:12mm}}</style></head><body>'+
+      '<h1>'+esc(title)+'</h1>'+ renderDetail(item) +
+      '<div class="dsec"><h4>Notas / Avances</h4>'+notasHtml+'</div></body></html>';
+  }
+  function downloadDetailPdf(){
+    if(!detailData) return;
+    var ifr=document.createElement('iframe');
+    ifr.style.position='fixed';ifr.style.right='0';ifr.style.bottom='0';ifr.style.width='0';ifr.style.height='0';ifr.style.border='0';
+    document.body.appendChild(ifr);
+    var doc=ifr.contentWindow.document; doc.open(); doc.write(buildDetailPrintHTML(detailData, detailNotas)); doc.close();
+    ifr.contentWindow.focus();
+    setTimeout(function(){ ifr.contentWindow.print(); setTimeout(function(){ document.body.removeChild(ifr); },1000); },400);
+  }
+  document.getElementById('detailPdf').addEventListener('click', downloadDetailPdf);
   document.getElementById('detailClose').addEventListener('click', function(){ document.getElementById('detailModal').classList.remove('show'); });
   document.getElementById('detailModal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
 
@@ -302,8 +384,9 @@
     }).catch(function(){});
   })();
 
+  var currentUser='';
   fetch('/.auth/me').then(function(r){return r.json();}).then(function(d){
-    var p=d&&d.clientPrincipal; document.getElementById('userName').textContent=p?(p.userDetails||'usuario'):'invitado';
+    var p=d&&d.clientPrincipal; currentUser=p?(p.userDetails||''):''; document.getElementById('userName').textContent=p?(p.userDetails||'usuario'):'invitado';
   }).catch(function(){ document.getElementById('userName').textContent=''; });
 
   function scopedItems(){
