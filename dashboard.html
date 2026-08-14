@@ -6,7 +6,7 @@
 <title>RQ-IT · Dashboard de Solicitudes</title>
 <style>
   :root{
-    --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff; --erp:#0d9488; --erp-soft:#ccfbf1;
+    --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff; --erp:#0d9488; --erp-soft:#ccfbf1; --gen:#d97706; --gen-soft:#fef3c7;
     --bg:#f6f7fb; --panel:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e6e8ef;
     --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
     --shadow-sm:0 1px 2px rgba(16,24,40,.06);
@@ -14,7 +14,7 @@
     --grad:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);
   }
   @media (prefers-color-scheme: dark){
-    :root{--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--erp-soft:#0e2b2a;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
+    :root{--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--erp-soft:#0e2b2a;--gen-soft:#3a2e12;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
       --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-sm:0 1px 2px rgba(0,0,0,.35)}
   }
   *{box-sizing:border-box} html,body{margin:0}
@@ -102,6 +102,7 @@
   .tipo{display:inline-block;padding:3px 9px;border-radius:7px;font-size:11.5px;font-weight:700}
   .tipo.infra{background:var(--brand-soft);color:var(--brand-2)}
   .tipo.erp{background:var(--erp-soft);color:var(--erp)}
+  .tipo.gen{background:var(--gen-soft);color:var(--gen)}
   .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700}
   .pill .d{width:7px;height:7px;border-radius:50%}
   .crit{display:inline-block;padding:3px 9px;border-radius:8px;font-size:12px;font-weight:700}
@@ -129,6 +130,7 @@
     <span class="userchip" id="user"><span class="dot"></span><span id="userName">…</span></span>
     <a class="ghostlink" href="/index.html">Nueva infraestructura</a>
     <a class="ghostlink" href="/erp.html">Nueva ERP</a>
+    <a class="ghostlink" href="/generales.html">Nueva general</a>
     <a class="ghostlink" href="/.auth/logout">Salir</a>
   </div>
 </div>
@@ -146,6 +148,7 @@
     <button class="active" data-scope="all">Todos <span class="badge" id="cnt-all">·</span></button>
     <button data-scope="infra">Infraestructura <span class="badge" id="cnt-infra">·</span></button>
     <button data-scope="erp">Sistemas / ERP <span class="badge" id="cnt-erp">·</span></button>
+    <button data-scope="gen">Generales <span class="badge" id="cnt-gen">·</span></button>
   </div>
 
   <div class="kpis" id="kpis"></div>
@@ -163,6 +166,7 @@
       <div class="barlegend">
         <span class="li"><span class="sw" style="background:var(--brand)"></span>Infraestructura</span>
         <span class="li"><span class="sw" style="background:var(--erp)"></span>Sistemas / ERP</span>
+        <span class="li"><span class="sw" style="background:var(--gen)"></span>Generales</span>
       </div>
     </div>
   </div>
@@ -201,7 +205,7 @@
     "Completado":["#047857","rgba(4,120,87,.16)"],"Rechazado":["#b91c1c","rgba(220,38,38,.16)"]
   };
   var CRIT = {"Alta":["#b91c1c","rgba(220,38,38,.14)"],"Media":["#b45309","rgba(217,119,6,.16)"],"Baja":["#15803d","rgba(22,163,74,.14)"]};
-  var API = { infra:"/api/solicitudes", erp:"/api/solicitudes-erp" };
+  var API = { infra:"/api/solicitudes", erp:"/api/solicitudes-erp", gen:"/api/solicitudes-generales" };
 
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function fmtDate(v){ if(!v) return ''; var d=new Date(v); return isNaN(d)?'' : d.toISOString().slice(0,10); }
@@ -210,7 +214,7 @@
   function crit(c){ if(!c) return '—'; var col=CRIT[c]||["#475569","rgba(100,116,139,.14)"]; return '<span class="crit" style="color:'+col[0]+';background:'+col[1]+'">'+esc(c)+'</span>'; }
   function chips(csv){ if(!csv) return '—'; return String(csv).split(/\s*,\s*/).filter(Boolean).map(function(m){return '<span class="chip">'+esc(m)+'</span>';}).join(''); }
 
-  var DATA = { infra:[], erp:[] };
+  var DATA = { infra:[], erp:[], gen:[] };
   var scope = "all";
 
   /* ---- usuarios (Entra) para el selector de Responsable ---- */
@@ -231,7 +235,8 @@
   function scopedItems(){
     if(scope==='infra') return DATA.infra;
     if(scope==='erp') return DATA.erp;
-    return DATA.infra.concat(DATA.erp);
+    if(scope==='gen') return DATA.gen;
+    return DATA.infra.concat(DATA.erp).concat(DATA.gen);
   }
   function countsBy(items){ var c={}; ESTADOS.forEach(function(e){c[e]=0;}); items.forEach(function(it){ if(c[it.Estado]==null)c[it.Estado]=0; c[it.Estado]++; }); return c; }
 
@@ -266,18 +271,19 @@
       var c=colorOf(e);
       return '<div class="li"><span class="sw" style="background:'+c[0]+'"></span><span class="ln">'+esc(e)+'</span><span class="lv">'+(counts[e]||0)+'</span></div>';
     }).join('');
-    document.getElementById('donutSub').textContent = scope==='all'?'Consolidado (Infraestructura + ERP)':(scope==='infra'?'Infraestructura':'Sistemas / ERP');
+    document.getElementById('donutSub').textContent = scope==='all'?'Consolidado (todos los tipos)':(scope==='infra'?'Infraestructura':(scope==='erp'?'Sistemas / ERP':'Generales'));
   }
 
   /* ---------- Barras por estado y tipo ---------- */
   function renderBars(){
-    var ci=countsBy(DATA.infra), ce=countsBy(DATA.erp), max=1;
-    ESTADOS.forEach(function(e){ max=Math.max(max, ci[e]||0, ce[e]||0); });
+    var ci=countsBy(DATA.infra), ce=countsBy(DATA.erp), cg=countsBy(DATA.gen), max=1;
+    ESTADOS.forEach(function(e){ max=Math.max(max, ci[e]||0, ce[e]||0, cg[e]||0); });
     document.getElementById('bars').innerHTML = ESTADOS.map(function(e){
-      var i=ci[e]||0, r=ce[e]||0;
+      var i=ci[e]||0, r=ce[e]||0, g=cg[e]||0;
       return '<div class="barrow"><div class="barlbl">'+esc(e)+'</div><div class="bars">'+
         '<div class="bar"><div class="track"><div class="fill" style="width:'+(i/max*100)+'%;background:var(--brand)"></div></div><span class="bv">'+i+'</span></div>'+
         '<div class="bar"><div class="track"><div class="fill" style="width:'+(r/max*100)+'%;background:var(--erp)"></div></div><span class="bv">'+r+'</span></div>'+
+        '<div class="bar"><div class="track"><div class="fill" style="width:'+(g/max*100)+'%;background:var(--gen)"></div></div><span class="bv">'+g+'</span></div>'+
         '</div></div>';
     }).join('');
   }
@@ -293,6 +299,7 @@
   function columns(){
     if(scope==='infra') return ["Id","Solicitud","Ambiente","Criticidad","Recursos","Estado","Responsable","Fecha entrega",""];
     if(scope==='erp')   return ["Id","Solicitud","Módulos","Fabric","Prioridad","Estado","Responsable","Fecha entrega",""];
+    if(scope==='gen')   return ["Id","Solicitud","Ámbito","Prioridad","Estado","Responsable","Fecha entrega",""];
     return ["Id","Tipo","Solicitud","Estado","Responsable","Fecha entrega",""];
   }
   function midCells(it){
@@ -302,18 +309,23 @@
       var sol='<td><div class="title">'+esc(t)+'</div>'+(it.Proyecto?('<div class="sub">'+esc(it.Proyecto)+(it.LiderProyecto?(' · '+esc(it.LiderProyecto)):'')+'</div>'):'')+'</td>';
       if(scope==='infra') return sol+'<td>'+esc(it.Ambiente||'—')+'</td><td>'+crit(it.Criticidad)+'</td><td class="mono">'+esc(rec.join(' · ')||'—')+'</td>';
       return '<td><span class="tipo infra">Infra</span></td>'+sol;
-    } else {
+    } else if(it._tipo==='erp'){
       var tt=it.Titulo||it.Area||('#'+it.Id);
       var sol2='<td><div class="title">'+esc(tt)+'</div>'+(it.Solicitante?('<div class="sub">'+esc(it.Solicitante)+(it.Area?(' · '+esc(it.Area)):'')+'</div>'):'')+'</td>';
       if(scope==='erp') return sol2+'<td>'+chips(it.Modulos)+'</td><td>'+(it.TransformarFabric==='Sí'?'<span class="crit" style="color:#0369a1;background:rgba(3,105,161,.14)">Sí</span>':'—')+'</td><td>'+crit(it.Prioridad)+'</td>';
       return '<td><span class="tipo erp">ERP</span></td>'+sol2;
+    } else {
+      var tg=it.Titulo||('#'+it.Id);
+      var sol3='<td><div class="title">'+esc(tg)+'</div>'+(it.Solicitante?('<div class="sub">'+esc(it.Solicitante)+(it.Area?(' · '+esc(it.Area)):'')+'</div>'):'')+'</td>';
+      if(scope==='gen') return sol3+'<td>'+chips(it.Ambito)+'</td><td>'+crit(it.Prioridad)+'</td>';
+      return '<td><span class="tipo gen">General</span></td>'+sol3;
     }
   }
   function renderTable(){
     var q=document.getElementById('q').value.trim().toLowerCase(), estado=document.getElementById('fEstado').value;
     var items=scopedItems().filter(function(it){
       if(estado && it.Estado!==estado) return false;
-      if(q){ var hay=[it.Titulo,it.Aplicacion,it.Proyecto,it.Identificador,it.LiderProyecto,it.Solicitante,it.Area,it.Modulos].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+      if(q){ var hay=[it.Titulo,it.Aplicacion,it.Proyecto,it.Identificador,it.LiderProyecto,it.Solicitante,it.Area,it.Modulos,it.Ambito].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
       return true;
     });
     var cols=columns();
@@ -361,13 +373,13 @@
 
   function loadAll(){
     document.getElementById('tbody').innerHTML='<tr><td><div class="state"><div class="spinner"></div>Cargando…</div></td></tr>';
-    Promise.all([fetchType('infra'), fetchType('erp')]).then(function(res){
-      DATA.infra=res[0].items; DATA.erp=res[1].items;
-      document.getElementById('cnt-all').textContent=DATA.infra.length+DATA.erp.length;
+    Promise.all([fetchType('infra'), fetchType('erp'), fetchType('gen')]).then(function(res){
+      DATA.infra=res[0].items; DATA.erp=res[1].items; DATA.gen=res[2].items;
+      document.getElementById('cnt-all').textContent=DATA.infra.length+DATA.erp.length+DATA.gen.length;
       document.getElementById('cnt-infra').textContent=DATA.infra.length;
       document.getElementById('cnt-erp').textContent=DATA.erp.length;
+      document.getElementById('cnt-gen').textContent=DATA.gen.length;
       renderAll();
-      if(res[1].error && res[1].error!=='401'){ /* ERP puede no estar creada aún */ }
     });
   }
 

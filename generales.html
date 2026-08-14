@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RQ-IT · Solicitud de Sistema / ERP</title>
+<title>RQ-IT · Solicitud General</title>
 <style>
   :root{
     --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff;
@@ -37,7 +37,7 @@
   .field:first-child{margin-top:0}
   .req{color:var(--brand-2)}
   input[type=text],input[type=date],textarea,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:11px;font-size:14px;background:var(--panel);color:var(--ink);font-family:inherit}
-  textarea{min-height:84px;resize:vertical}
+  textarea{min-height:90px;resize:vertical}
   input:focus,textarea:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(124,58,237,.15)}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media (max-width:640px){.grid{grid-template-columns:1fr}}
@@ -45,33 +45,17 @@
   .err-msg{display:none;color:var(--err);font-size:12px;margin-top:5px}
   .err-msg.show{display:block}
 
-  .mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:6px}
-  .mod{border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;display:flex;gap:10px;align-items:flex-start;transition:border-color .12s,background .12s}
+  .mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:6px}
+  .mod{border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;display:flex;gap:10px;align-items:center;transition:border-color .12s,background .12s}
   .mod:hover{background:var(--brand-soft)}
   .mod.on{border-color:var(--brand);background:var(--brand-soft)}
-  .mod input{margin-top:2px}
-  .mod b{font-size:13.5px}.mod small{display:block;color:var(--muted);font-size:11.5px}
-
-  .proc-row{display:flex;gap:8px;margin-top:8px}
-  .proc-row input{flex:1}
-  .del{border:1px solid var(--line);background:var(--panel);color:var(--err);border-radius:9px;width:40px;cursor:pointer;font-size:16px}
-  .del:hover{background:rgba(220,38,38,.08)}
-
-  .switch{display:flex;align-items:center;gap:12px;cursor:pointer}
-  .switch input{position:absolute;opacity:0}
-  .track{width:44px;height:25px;border-radius:999px;background:#cbd5e1;position:relative;transition:background .15s;flex:none}
-  .track::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:transform .15s}
-  .switch input:checked + .track{background:var(--brand)}
-  .switch input:checked + .track::after{transform:translateX(19px)}
-  .cond{display:none;margin-top:12px}.cond.show{display:block}
+  .mod b{font-size:13.5px}
 
   .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:11px 18px;font-size:14px;cursor:pointer;font-weight:650}
   .btn:hover{background:var(--brand-soft)}
   .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
   .btn.primary:hover{background:var(--brand-2)}
-  .btn.sm{padding:8px 13px;font-size:13px}
-  .actionbar{position:sticky;bottom:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
-    padding:12px 16px;display:flex;align-items:center;gap:12px;margin-top:6px}
+  .actionbar{position:sticky;bottom:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:12px 16px;display:flex;align-items:center;gap:12px;margin-top:6px}
   .status{font-size:13px;color:var(--muted)}
   .status.ok{color:var(--ok)} .status.err{color:var(--err)}
 
@@ -86,78 +70,64 @@
 </head>
 <body>
 
+<datalist id="usuariosDL"></datalist>
+
 <div class="appbar">
   <div class="inner">
     <div class="logo">RQ</div>
-    <div class="brand-t"><b>RQ-IT</b><span>Solicitud de Sistema / ERP</span></div>
+    <div class="brand-t"><b>RQ-IT</b><span>Solicitud General</span></div>
     <div class="grow"></div>
     <a class="ghostlink" href="/index.html">Infraestructura</a>
-    <a class="ghostlink" href="/generales.html">General</a>
+    <a class="ghostlink" href="/erp.html">ERP</a>
     <a class="ghostlink" href="/dashboard.html">Dashboard</a>
   </div>
 </div>
 
 <div class="wrap">
-  <h1>Solicitud de Sistema / ERP</h1>
-  <p class="lead">Solicita funcionalidad de módulos ERP (HRM, FMS, OSM, IMS, POS, TMS, MPC), procesos y transformación a Fabric. El seguimiento (responsable y fecha de entrega) se asigna después desde el dashboard.</p>
+  <h1>Solicitud General</h1>
+  <p class="lead">Para requerimientos que no encajan en Infraestructura o ERP: accesos, permisos en red, sistemas, u otros. Da el mayor contexto posible. El seguimiento (responsable y fecha de entrega) se asigna después desde el dashboard.</p>
 
-  <form id="erpForm" novalidate>
+  <form id="genForm" novalidate>
     <div class="card">
       <h2>Datos de la solicitud</h2>
       <div class="grid">
         <div>
           <label class="field" for="solicitante">Solicitante <span class="req">*</span></label>
           <input type="text" id="solicitante" data-req list="usuariosDL" autocomplete="off" placeholder="Escribe para buscar en el directorio…">
-          <datalist id="usuariosDL"></datalist>
           <div class="err-msg">Requerido</div>
         </div>
         <div>
-          <label class="field" for="area">Área / Departamento <span class="req">*</span></label>
-          <input type="text" id="area" data-req placeholder="Ej. Finanzas, Operaciones">
-          <div class="err-msg">Requerido</div>
+          <label class="field" for="area">Área / Departamento</label>
+          <input type="text" id="area" placeholder="Ej. Finanzas, Operaciones">
         </div>
       </div>
-      <label class="field" for="descripcion">Descripción / Necesidad <span class="req">*</span></label>
-      <textarea id="descripcion" data-req placeholder="Describe qué se necesita y para qué…"></textarea>
+      <label class="field" for="asunto">Asunto <span class="req">*</span></label>
+      <input type="text" id="asunto" data-req placeholder="Resumen corto de la solicitud">
       <div class="err-msg">Requerido</div>
       <div style="margin-top:14px">
         <label class="field" for="prioridad">Prioridad</label>
-        <select id="prioridad">
-          <option>Media</option><option>Alta</option><option>Baja</option>
-        </select>
+        <select id="prioridad"><option>Media</option><option>Alta</option><option>Baja</option></select>
       </div>
     </div>
 
     <div class="card">
-      <h2>Módulos ERP <span class="hint">— marca los que aplican</span></h2>
-      <div class="mods" id="mods">
-        <label class="mod"><input type="checkbox" value="HRM"><span><b>HRM</b><small>Recursos Humanos</small></span></label>
-        <label class="mod"><input type="checkbox" value="FMS"><span><b>FMS</b><small>Finanzas</small></span></label>
-        <label class="mod"><input type="checkbox" value="OSM"><span><b>OSM</b><small>Operaciones / Servicios</small></span></label>
-        <label class="mod"><input type="checkbox" value="IMS"><span><b>IMS</b><small>Inventario</small></span></label>
-        <label class="mod"><input type="checkbox" value="POS"><span><b>POS</b><small>Punto de Venta</small></span></label>
-        <label class="mod"><input type="checkbox" value="TMS"><span><b>TMS</b><small>Transporte / Logística</small></span></label>
-        <label class="mod"><input type="checkbox" value="MPC"><span><b>MPC</b><small>Planeación y Control de Producción</small></span></label>
+      <h2>Ámbito <span class="hint">— marca lo que aplique</span></h2>
+      <div class="mods" id="ambitos">
+        <label class="mod"><input type="checkbox" value="Infraestructura"><b>Infraestructura</b></label>
+        <label class="mod"><input type="checkbox" value="Sistemas"><b>Sistemas</b></label>
+        <label class="mod"><input type="checkbox" value="Accesos"><b>Accesos</b></label>
+        <label class="mod"><input type="checkbox" value="Permisos en Red"><b>Permisos en Red</b></label>
+        <label class="mod"><input type="checkbox" value="Otro"><b>Otro</b></label>
       </div>
     </div>
 
     <div class="card">
-      <h2>Procesos <span class="hint">— procesos o funcionalidades específicas a incluir</span></h2>
-      <div id="procBody"></div>
-      <button type="button" class="btn sm" id="addProc" style="margin-top:10px">+ Agregar proceso</button>
-    </div>
-
-    <div class="card">
-      <h2>Transformación a Fabric</h2>
-      <label class="switch" style="margin-top:8px">
-        <input type="checkbox" id="fabric_req">
-        <span class="track"></span>
-        <span>¿Requiere transformar / integrar a Microsoft Fabric?</span>
-      </label>
-      <div class="cond" id="fabric_fields">
-        <label class="field" for="fabric_detalle">Detalle de la transformación a Fabric</label>
-        <textarea id="fabric_detalle" placeholder="Orígenes de datos, modelos, reportes, objetivo…"></textarea>
-      </div>
+      <h2>Contexto</h2>
+      <label class="field" for="descripcion">Descripción / Contexto <span class="req">*</span></label>
+      <textarea id="descripcion" data-req placeholder="Describe con detalle qué necesitas, para qué y cualquier información relevante…"></textarea>
+      <div class="err-msg">Requerido</div>
+      <label class="field" for="justificacion">Justificación / Impacto <span class="hint">— opcional</span></label>
+      <textarea id="justificacion" placeholder="¿Por qué se necesita? ¿Qué pasa si no se atiende?"></textarea>
     </div>
 
     <div class="actionbar">
@@ -173,7 +143,7 @@
   <div class="modal">
     <div class="m-head"><h2>Solicitud lista</h2><button class="x" id="closeModal">×</button></div>
     <div class="m-body">
-      <p style="margin:0 0 16px;font-size:14px">Revisa y envía tu solicitud ERP. Se guardará en la base de datos <strong>RQ-IT</strong>.</p>
+      <p style="margin:0 0 16px;font-size:14px">Revisa y envía tu solicitud. Se guardará en la base de datos <strong>RQ-IT</strong>.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button type="button" class="btn" id="btnPdf">Descargar PDF</button>
         <button type="button" class="btn primary" id="btnEnviar">Enviar Solicitud</button>
@@ -186,111 +156,64 @@
 <script>
 (function(){
   "use strict";
-  var API = "/api/solicitudes-erp";
+  var API = "/api/solicitudes-generales";
   var lastModel = null;
-
-  /* Cargar usuarios del directorio (Entra) para el selector de Solicitante */
-  (function loadUsuarios(){
-    var dl = document.getElementById('usuariosDL');
-    if(!dl) return;
-    fetch('/api/usuarios').then(function(r){ return r.ok?r.json():null; }).then(function(d){
-      if(!d || !d.ok || !d.items) return;
-      dl.innerHTML = d.items.map(function(u){
-        var v = String(u.name||'').replace(/"/g,'&quot;');
-        var lbl = String(u.email||u.jobTitle||'').replace(/"/g,'&quot;');
-        return '<option value="'+v+'"'+(lbl?(' label="'+lbl+'"'):'')+'></option>';
-      }).join('');
-    }).catch(function(){});
-  })();
 
   function val(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function setStatus(msg, cls){ var s=document.getElementById('statusBar'); s.textContent=msg; s.className='status'+(cls?(' '+cls):''); }
 
-  /* Módulos: resaltar tarjeta al marcar */
+  /* usuarios del directorio (Entra) */
+  (function(){
+    var dl=document.getElementById('usuariosDL'); if(!dl) return;
+    fetch('/api/usuarios').then(function(r){return r.ok?r.json():null;}).then(function(d){
+      if(!d||!d.ok||!d.items) return;
+      dl.innerHTML=d.items.map(function(u){ var v=String(u.name||'').replace(/"/g,'&quot;'); var lbl=String(u.email||'').replace(/"/g,'&quot;'); return '<option value="'+v+'"'+(lbl?(' label="'+lbl+'"'):'')+'></option>'; }).join('');
+    }).catch(function(){});
+  })();
+
   Array.prototype.forEach.call(document.querySelectorAll('.mod input'), function(cb){
     cb.addEventListener('change', function(){ cb.closest('.mod').classList.toggle('on', cb.checked); });
   });
-  function collectModulos(){
-    return Array.prototype.filter.call(document.querySelectorAll('.mod input'), function(c){return c.checked;})
-      .map(function(c){return c.value;});
-  }
-
-  /* Procesos dinámicos */
-  var procBody = document.getElementById('procBody');
-  function procRow(v){
-    var row = document.createElement('div'); row.className='proc-row';
-    row.innerHTML = '<input type="text" class="p-nombre" placeholder="Ej. Cierre contable mensual">'+
-      '<button type="button" class="del" title="Eliminar">×</button>';
-    procBody.appendChild(row);
-    row.querySelector('.del').addEventListener('click', function(){ row.remove(); });
-    if(v) row.querySelector('.p-nombre').value=v;
-    return row;
-  }
-  document.getElementById('addProc').addEventListener('click', function(){ procRow(); });
-  procRow();
-  function collectProcesos(){
-    return Array.prototype.map.call(procBody.querySelectorAll('.p-nombre'), function(i){return i.value.trim();})
-      .filter(Boolean);
-  }
-
-  /* Fabric toggle */
-  document.getElementById('fabric_req').addEventListener('change', function(){
-    document.getElementById('fabric_fields').classList.toggle('show', this.checked);
-  });
+  function collectAmbito(){ return Array.prototype.filter.call(document.querySelectorAll('.mod input'), function(c){return c.checked;}).map(function(c){return c.value;}); }
 
   function validate(){
     var ok=true, first=null;
     document.querySelectorAll('[data-req]').forEach(function(el){
-      var empty = !el.value || !el.value.trim();
+      var empty=!el.value||!el.value.trim();
       el.classList.toggle('invalid', empty);
-      var m = el.parentElement.querySelector('.err-msg');
-      if(m) m.classList.toggle('show', empty);
+      var m=el.parentElement.querySelector('.err-msg'); if(m) m.classList.toggle('show', empty);
       if(empty){ ok=false; if(!first) first=el; }
     });
     if(first){ first.scrollIntoView({behavior:'smooth',block:'center'}); first.focus({preventScroll:true}); }
     return ok;
   }
   document.querySelectorAll('[data-req]').forEach(function(el){
-    el.addEventListener('input', function(){
-      if(el.value && el.value.trim()){ el.classList.remove('invalid'); var m=el.parentElement.querySelector('.err-msg'); if(m) m.classList.remove('show'); }
-    });
+    el.addEventListener('input', function(){ if(el.value&&el.value.trim()){ el.classList.remove('invalid'); var m=el.parentElement.querySelector('.err-msg'); if(m) m.classList.remove('show'); } });
   });
 
   function buildModel(){
     return {
-      solicitante: val('solicitante'),
-      area: val('area'),
-      descripcion: val('descripcion'),
-      prioridad: val('prioridad'),
-      modulos: collectModulos(),
-      procesos: collectProcesos(),
-      transformar_fabric: document.getElementById('fabric_req').checked,
-      fabric_detalle: val('fabric_detalle'),
-      estado: 'Nuevo'
+      solicitante: val('solicitante'), area: val('area'), asunto: val('asunto'),
+      ambito: collectAmbito(), descripcion: val('descripcion'), justificacion: val('justificacion'),
+      prioridad: val('prioridad'), estado: 'Nuevo'
     };
   }
 
-  /* PDF vía diálogo de impresión */
   function buildPrintHTML(m){
     function fld(l,v){ return '<tr><th>'+esc(l)+'</th><td>'+esc(v)+'</td></tr>'; }
-    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Solicitud_ERP</title><style>'+
+    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Solicitud_General</title><style>'+
       'body{font-family:Segoe UI,Arial,sans-serif;color:#1e293b;margin:32px;font-size:12.5px}'+
       'h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:22px 0 8px;border-bottom:2px solid #6d28d9;padding-bottom:4px;color:#6d28d9}'+
       'table{border-collapse:collapse;width:100%}th,td{border:1px solid #cbd5e1;padding:6px 9px;text-align:left;vertical-align:top}'+
-      'th{background:#f1f5f9;width:220px;font-weight:600}@media print{body{margin:12mm}}</style></head><body>'+
-      '<h1>Solicitud de Sistema / ERP</h1>'+
+      'th{background:#f1f5f9;width:200px;font-weight:600}@media print{body{margin:12mm}}</style></head><body>'+
+      '<h1>Solicitud General</h1>'+
       '<h2>Datos</h2><table>'+
-        fld('Solicitante', m.solicitante)+fld('Área', m.area)+fld('Prioridad', m.prioridad)+
-        fld('Descripción', m.descripcion)+
+        fld('Solicitante', m.solicitante)+fld('Área', m.area)+fld('Asunto', m.asunto)+fld('Prioridad', m.prioridad)+
+        fld('Ámbito', (m.ambito||[]).join(', '))+
       '</table>'+
-      '<h2>Módulos y procesos</h2><table>'+
-        fld('Módulos', (m.modulos||[]).join(', '))+
-        fld('Procesos', (m.procesos||[]).join(' · '))+
-      '</table>'+
-      '<h2>Fabric</h2><table>'+
-        fld('¿Transformar a Fabric?', m.transformar_fabric?'Sí':'No')+
-        (m.transformar_fabric?fld('Detalle', m.fabric_detalle):'')+
+      '<h2>Contexto</h2><table>'+
+        fld('Descripción', m.descripcion)+(m.justificacion?fld('Justificación / Impacto', m.justificacion):'')+
       '</table></body></html>';
   }
   function downloadPdf(m){
@@ -309,32 +232,26 @@
     document.getElementById('modal').classList.add('show');
     setStatus('Solicitud lista. Revísala y pulsa Enviar.', 'ok');
   });
-
   document.getElementById('btnPdf').addEventListener('click', function(){ if(lastModel) downloadPdf(lastModel); });
-
   document.getElementById('btnEnviar').addEventListener('click', function(){
     var st=document.getElementById('modalStatus');
     function onStatus(msg,cls){ st.textContent=msg; st.className='status'+(cls?(' '+cls):''); }
     if(!lastModel){ onStatus('Revisa la solicitud primero.', 'err'); return; }
-    onStatus('Guardando…', '');
+    onStatus('Guardando…','');
     fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({model:lastModel})})
       .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok,d:d}; }); })
       .then(function(res){
         if(res.ok && res.d && res.d.ok){ onStatus('✓ Solicitud enviada (Id '+(res.d.id!=null?res.d.id:'—')+').', 'ok'); }
-        else { onStatus('✗ '+((res.d&&res.d.error)||('estado '+ '')), 'err'); }
+        else { onStatus('✗ '+((res.d&&res.d.error)||'Error al enviar'), 'err'); }
       })
       .catch(function(){ onStatus('✗ No se pudo conectar con la API.', 'err'); });
   });
-
   document.getElementById('closeModal').addEventListener('click', function(){ document.getElementById('modal').classList.remove('show'); });
   document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
-
   document.getElementById('btnReset').addEventListener('click', function(){
     if(!confirm('¿Limpiar el formulario?')) return;
-    document.getElementById('erpForm').reset();
+    document.getElementById('genForm').reset();
     Array.prototype.forEach.call(document.querySelectorAll('.mod'), function(m){ m.classList.remove('on'); });
-    document.getElementById('fabric_fields').classList.remove('show');
-    procBody.innerHTML=''; procRow();
     setStatus('Formulario limpio.');
   });
 })();

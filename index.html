@@ -181,6 +181,7 @@
     <span class="chip">Proyectos IT · Sigosa</span>
     <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
       <a href="/erp.html" style="text-decoration:none;font-size:13px;font-weight:600;color:#6d28d9;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:9px;padding:8px 13px">Solicitud ERP</a>
+      <a href="/generales.html" style="text-decoration:none;font-size:13px;font-weight:600;color:#6d28d9;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:9px;padding:8px 13px">Solicitud General</a>
       <a href="/dashboard.html" style="text-decoration:none;font-size:13px;font-weight:600;color:#6d28d9;background:#f5f3ff;border:1px solid #e9d5ff;border-radius:9px;padding:8px 13px">Dashboard</a>
     </div>
   </header>
@@ -229,6 +230,14 @@
           <div class="full">
             <label class="field" for="descripcion">Propósito y Descripción Breve <span class="hint">También se registra como “Funcionalidad” en SharePoint.</span></label>
             <textarea id="descripcion" placeholder="¿Qué hace la aplicación y para qué se necesita?"></textarea>
+          </div>
+          <div>
+            <label class="field" for="repo_nombre">Repositorio · Nombre</label>
+            <input type="text" id="repo_nombre" placeholder="Ej. rq-it / mi-app">
+          </div>
+          <div>
+            <label class="field" for="repo_url">Repositorio · URL</label>
+            <input type="text" id="repo_url" placeholder="https://github.com/org/repo">
           </div>
         </div>
       </div>
@@ -757,7 +766,9 @@
         proyecto: val('proyecto'),
         lider_tecnico: val('lider_tecnico'),
         fecha_produccion: val('fecha_produccion'),
-        descripcion: val('descripcion')
+        descripcion: val('descripcion'),
+        repositorio_nombre: val('repo_nombre'),
+        repositorio_url: val('repo_url')
       },
       computo_y_contenedores:{
         arquitectura_despliegue: val('arquitectura_despliegue'),
@@ -935,6 +946,7 @@
         fld('Aplicación', ig.nombre_aplicacion)+fld('Identificador', ig.identificador)+
         fld('Proyecto', ig.proyecto)+fld('Líder técnico', ig.lider_tecnico)+
         fld('Fecha a producción', ig.fecha_produccion)+fld('Descripción', ig.descripcion)+
+        (ig.repositorio_nombre||ig.repositorio_url ? fld('Repositorio', (ig.repositorio_nombre||'')+(ig.repositorio_url?(' — '+ig.repositorio_url):'')) : '')+
       '</table>'+
       '<h2>Cómputo y contenedores</h2><table>'+
         fld('Arquitectura de despliegue', cc.arquitectura_despliegue)+
