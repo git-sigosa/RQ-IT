@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RQ-IT · Pases a Producción</title>
+<style>
+  :root{
+    --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff;
+    --bg:#f6f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b; --line:#e6e8ef;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+    --shadow-sm:0 1px 2px rgba(16,24,40,.06); --radius:16px; --ok:#16a34a; --err:#dc2626;
+    --grad:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-sm:0 1px 2px rgba(0,0,0,.35)}
+  }
+  :root[data-theme="dark"]{--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-sm:0 1px 2px rgba(0,0,0,.35)}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:"Segoe UI",Inter,system-ui,-apple-system,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.5}
+  .appbar{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
+  .appbar .inner{max-width:1240px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px}
+  .logo{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;flex:none;box-shadow:0 4px 12px rgba(124,58,237,.35)}
+  .brand-t{display:flex;flex-direction:column;line-height:1.15}
+  .brand-t b{font-size:15px;font-weight:700}.brand-t span{font-size:12px;color:var(--muted)}
+  .grow{flex:1}
+  .ghostlink{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px}
+  .ghostlink:hover{background:var(--brand-soft);color:var(--brand-2)}
+  .wrap{max-width:1240px;margin:0 auto;padding:22px}
+  h1{font-size:22px;margin:0 0 4px;font-weight:750;letter-spacing:-.01em}
+  .lead{color:var(--muted);margin:0 0 18px;font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+  .kpi .n{font-size:24px;font-weight:800}.kpi .l{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:7px}
+  .kpi .accent{width:9px;height:9px;border-radius:3px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .tablewrap{overflow-x:auto}
+  table{width:100%;border-collapse:separate;border-spacing:0;min-width:820px}
+  thead th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;text-align:left;padding:13px 14px;border-bottom:1px solid var(--line)}
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--brand-soft)}
+  a.link{color:var(--brand-2);text-decoration:none;font-weight:650}
+  a.link:hover{text-decoration:underline}
+  .mono{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px}
+  .tipo{display:inline-block;padding:2px 8px;border-radius:7px;font-size:11px;font-weight:700;background:var(--brand-soft);color:var(--brand-2)}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700}
+  .pill .d{width:7px;height:7px;border-radius:50%}
+  .state{padding:44px;text-align:center;color:var(--muted)}
+  .spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .err-txt{color:var(--err)}
+  .soon{color:#b45309;font-weight:700}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <div class="inner">
+    <div class="logo">RQ</div>
+    <div class="brand-t"><b>RQ-IT</b><span>Pases a Producción</span></div>
+    <div class="grow"></div>
+    <a class="ghostlink" href="/dashboard.html">Dashboard</a>
+    <a class="ghostlink" href="/gantt.html">Proyectos</a>
+    <a class="ghostlink" href="/.auth/logout">Salir</a>
+  </div>
+</div>
+<div class="wrap">
+  <h1>Pases a Producción</h1>
+  <p class="lead">Bandeja de pases planificados, ordenados por fecha. Abre una solicitud para editar su plan, documentación y notas.</p>
+  <div class="kpis" id="kpis"></div>
+  <div class="card"><div class="tablewrap"><table>
+    <thead><tr><th>Solicitud</th><th>Tipo</th><th>Fecha</th><th>Ventana</th><th>Responsable</th><th>Aprobador</th><th>Estado</th></tr></thead>
+    <tbody id="tbody"><tr><td colspan="7"><div class="state"><div class="spinner"></div>Cargando…</div></td></tr></tbody>
+  </table></div></div>
+</div>
+<script>
+(function(){
+  "use strict";
+  var COLORS={ "Planificado":["#4f46e5","rgba(79,70,229,.14)"],"Aprobado":["#15803d","rgba(22,163,74,.16)"],
+    "En curso":["#0369a1","rgba(3,105,161,.16)"],"Completado":["#047857","rgba(4,120,87,.16)"],"Rollback":["#b91c1c","rgba(220,38,38,.16)"] };
+  var TIPO_LBL={infra:"Infraestructura",erp:"ERP",gen:"General"};
+  var ESTADOS=["Planificado","Aprobado","En curso","Completado","Rollback"];
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function colr(e){ return COLORS[e]||["#475569","rgba(100,116,139,.14)"]; }
+  function pill(e){ var c=colr(e); return '<span class="pill" style="color:'+c[0]+';background:'+c[1]+'"><span class="d" style="background:'+c[0]+'"></span>'+esc(e||'—')+'</span>'; }
+  function fmtDate(v){ if(!v) return '—'; var d=new Date(v); return isNaN(d)?'—':d.toISOString().slice(0,10); }
+  function fmtDT(v){ if(!v) return ''; var d=new Date(v); return isNaN(d)?'':d.toISOString().slice(0,16).replace('T',' '); }
+  function daysTo(v){ if(!v) return null; var d=new Date(v); if(isNaN(d)) return null; return Math.ceil((d-new Date())/86400000); }
+
+  fetch('/api/pases').then(function(r){ if(r.status===401){ location.href='/.auth/login/aad'; return null;} return r.json(); }).then(function(d){
+    var tb=document.getElementById('tbody');
+    if(!d) return;
+    if(!d.ok){ document.getElementById('kpis').innerHTML=''; tb.innerHTML='<tr><td colspan="7"><div class="state err-txt">'+esc(d.error||'Error')+(d.debug?(' — '+esc(d.debug.message)):'')+'</div></td></tr>'; return; }
+    var items=d.items||[];
+    // KPIs por estado
+    var counts={}; ESTADOS.forEach(function(e){counts[e]=0;}); items.forEach(function(it){ if(counts[it.Estado]==null)counts[it.Estado]=0; counts[it.Estado]++; });
+    document.getElementById('kpis').innerHTML='<div class="kpi"><div class="n">'+items.length+'</div><div class="l">Total</div></div>'+
+      ESTADOS.map(function(e){ var c=colr(e); return '<div class="kpi"><div class="n" style="color:'+c[0]+'">'+(counts[e]||0)+'</div><div class="l"><span class="accent" style="background:'+c[0]+'"></span>'+esc(e)+'</div></div>'; }).join('');
+    if(!items.length){ tb.innerHTML='<tr><td colspan="7"><div class="state">Aún no hay pases planificados. Abre una solicitud en el dashboard y planifica su pase.</div></td></tr>'; return; }
+    tb.innerHTML=items.map(function(it){
+      var link='/dashboard.html?tipo='+encodeURIComponent(it.Tipo)+'&id='+it.SolicitudId;
+      var dd=daysTo(it.FechaPlanificada);
+      var soon=(dd!=null&&dd>=0&&dd<=7&&it.Estado!=='Completado')?' <span class="soon">('+dd+'d)</span>':'';
+      var ventana=(it.VentanaInicio?fmtDT(it.VentanaInicio):'')+(it.VentanaFin?(' → '+fmtDT(it.VentanaFin)):'');
+      return '<tr><td><a class="link" href="'+link+'">'+esc(it.Titulo||('#'+it.SolicitudId))+'</a></td>'+
+        '<td><span class="tipo">'+esc(TIPO_LBL[it.Tipo]||it.Tipo)+'</span></td>'+
+        '<td class="mono">'+esc(fmtDate(it.FechaPlanificada))+soon+'</td>'+
+        '<td class="mono">'+esc(ventana||'—')+'</td>'+
+        '<td>'+esc(it.Responsable||'—')+'</td>'+
+        '<td>'+esc(it.Aprobador||'—')+'</td>'+
+        '<td>'+pill(it.Estado)+'</td></tr>';
+    }).join('');
+  }).catch(function(){ document.getElementById('tbody').innerHTML='<tr><td colspan="7"><div class="state err-txt">Error de red.</div></td></tr>'; });
+})();
+</script>
+</body>
+</html>
