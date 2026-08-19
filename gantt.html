@@ -64,7 +64,12 @@
   /* Gantt */
   .gantt{display:grid;grid-template-columns:300px 1fr;overflow:hidden}
   .gcol-h{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0}
-  .gtasks{border-right:1px solid var(--line);min-width:0}
+  .gtasks{border-right:1px solid var(--line);min-width:0;position:relative}
+  .gsplit{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:6}
+  .gsplit:hover,.gsplit.on{background:var(--brand);opacity:.35}
+  .gfoot{display:flex;flex-wrap:wrap;gap:20px;padding:12px 16px;border-top:1px solid var(--line);background:var(--panel)}
+  .gfoot-i .v{font-weight:800;font-size:16px;line-height:1}
+  .gfoot-i .k{font-size:11px;color:var(--muted);margin-top:3px}
   .grow2{display:flex;flex-direction:column;justify-content:center;gap:1px;padding:0 12px;height:44px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
   .grow2:hover{background:var(--brand-soft)}
   .grow2 .tmain{display:flex;align-items:center;gap:8px}
@@ -226,6 +231,13 @@
   var SOL_APIS=[{t:"infra",api:"/api/solicitudes",label:"Infraestructura"},{t:"erp",api:"/api/solicitudes-erp",label:"ERP"},{t:"gen",api:"/api/solicitudes-generales",label:"General"}];
   var DAYW=13, ROWH=44;
   var projects=[], current=null, tasks=[], collapsed={};
+  var taskColW=300, dragging=false;
+  document.addEventListener('mousemove', function(e){
+    if(!dragging) return; var g=document.querySelector('.gantt'); if(!g) return;
+    var rect=g.getBoundingClientRect(); var w=Math.max(160, Math.min(680, e.clientX-rect.left));
+    taskColW=w; g.style.gridTemplateColumns=w+'px 1fr';
+  });
+  document.addEventListener('mouseup', function(){ if(dragging){ dragging=false; document.body.style.userSelect=''; var s=document.querySelector('.gsplit'); if(s)s.classList.remove('on'); } });
 
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function el(id){ return document.getElementById(id); }
@@ -401,15 +413,29 @@
       return '<div class="gband" style="width:'+width+'px">'+inner+'</div>';
     }).join('');
 
+    // resumen (recursos, duración, avance)
+    var tS=[],tE=[]; tasks.forEach(function(t){var s=parseD(t.FechaInicio),e=parseD(t.FechaFin)||s; if(s)tS.push(s.getTime()); if(e)tE.push(e.getTime());});
+    var durTxt='—', rango='—';
+    if(tS.length){ var mn=new Date(Math.min.apply(null,tS)), mx=new Date(Math.max.apply(null,tE)); durTxt=(daysBetween(mn,mx)+1)+' días'; rango=fmt(mn)+' → '+fmt(mx); }
+    var recs={}; tasks.forEach(function(t){ var r=respOf(t); if(r) recs[r]=1; });
+    var leaf=tasks.filter(function(t){return !t.EsHito;});
+    var progG=leaf.length?Math.round(leaf.reduce(function(a,t){return a+(t.Progreso||0);},0)/leaf.length):0;
+    var nHitos=tasks.filter(function(t){return t.EsHito;}).length;
+    function fi(v,k){ return '<div class="gfoot-i"><div class="v">'+esc(v)+'</div><div class="k">'+esc(k)+'</div></div>'; }
+    var foot='<div class="gfoot">'+fi(durTxt,'Duración')+fi(rango,'Periodo')+fi(Object.keys(recs).length,'Recursos')+fi(leaf.length,'Tareas')+fi(nHitos,'Hitos')+fi(progG+'%','Avance global')+'</div>';
+
     area.innerHTML='<div class="gantt">'+
-      '<div class="gtasks"><div class="gcol-h">Tarea</div>'+names+'</div>'+
+      '<div class="gtasks"><div class="gcol-h">Tarea</div>'+names+'<div class="gsplit" title="Arrastra para ajustar el ancho de la columna"></div></div>'+
       '<div class="gtimeline-wrap"><div class="gtimeline" style="width:'+width+'px">'+
         '<div class="gaxis">'+axis+todayMark+'</div>'+
         '<div style="position:relative">'+bands+
           '<div class="gtoday" style="left:'+todayLeft+'px"></div>'+
         '</div>'+
       '</div></div>'+
-    '</div>';
+    '</div>'+foot;
+
+    var gEl=area.querySelector('.gantt'); if(gEl) gEl.style.gridTemplateColumns=taskColW+'px 1fr';
+    var sp=area.querySelector('.gsplit'); if(sp) sp.addEventListener('mousedown', function(e){ e.preventDefault(); dragging=true; sp.classList.add('on'); document.body.style.userSelect='none'; });
 
     // click en barras/hitos/filas -> editar
     Array.prototype.forEach.call(area.querySelectorAll('.gbar,.ghito,.gsummary,.grow2'), function(node){
