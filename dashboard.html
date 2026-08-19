@@ -30,6 +30,8 @@
   .userchip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
   .ghostlink{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px}
   .ghostlink:hover{background:var(--brand-soft);color:var(--brand-2)}
+  .ghostlink.active{background:var(--brand-soft);color:var(--brand-2);font-weight:700}
+  .appbar .inner{flex-wrap:wrap}
 
   .wrap{max-width:1240px;margin:0 auto;padding:22px}
   .page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap}
@@ -170,12 +172,13 @@
     <div class="brand-t"><b>RQ-IT</b><span>Solicitudes de Infraestructura y ERP</span></div>
     <div class="grow"></div>
     <span class="userchip" id="user"><span class="dot"></span><span id="userName">…</span></span>
-    <a class="ghostlink" href="/index.html">Nueva infraestructura</a>
-    <a class="ghostlink" href="/erp.html">Nueva ERP</a>
-    <a class="ghostlink" href="/generales.html">Nueva general</a>
-    <a class="ghostlink" href="/gantt.html">Proyectos</a>
-    <a class="ghostlink" href="/pases.html">Pases a Producción</a>
-    <a class="ghostlink" href="/.auth/logout">Salir</a>
+    <a class="ghostlink active" href="/dashboard.html">DASHBOARD</a>
+    <a class="ghostlink" href="/index.html">RQ-IT</a>
+    <a class="ghostlink" href="/erp.html">RQ-ERP</a>
+    <a class="ghostlink" href="/generales.html">RQ-GEN</a>
+    <a class="ghostlink" href="/gantt.html">PROYECTS</a>
+    <a class="ghostlink" href="/pases.html">RQ-PRODUCCION</a>
+    <a class="ghostlink" href="/.auth/logout">SALIR</a>
   </div>
 </div>
 

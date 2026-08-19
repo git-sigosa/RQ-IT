@@ -30,6 +30,8 @@
   .userchip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
   .ghostlink{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px}
   .ghostlink:hover{background:var(--brand-soft);color:var(--brand-2)}
+  .ghostlink.active{background:var(--brand-soft);color:var(--brand-2);font-weight:700}
+  .appbar .inner{flex-wrap:wrap}
 
   .layout{max-width:1360px;margin:0 auto;padding:18px 22px;display:grid;grid-template-columns:280px 1fr;gap:18px}
   @media (max-width:900px){.layout{grid-template-columns:1fr}}
@@ -121,9 +123,13 @@
     <div class="brand-t"><b>RQ-IT</b><span>Portal de Proyectos · Gantt</span></div>
     <div class="grow"></div>
     <span class="userchip" id="user"><span class="dot"></span><span id="userName">…</span></span>
-    <a class="ghostlink" href="/dashboard.html">Dashboard</a>
-    <a class="ghostlink" href="/index.html">Infraestructura</a>
-    <a class="ghostlink" href="/.auth/logout">Salir</a>
+    <a class="ghostlink" href="/dashboard.html">DASHBOARD</a>
+    <a class="ghostlink" href="/index.html">RQ-IT</a>
+    <a class="ghostlink" href="/erp.html">RQ-ERP</a>
+    <a class="ghostlink" href="/generales.html">RQ-GEN</a>
+    <a class="ghostlink active" href="/gantt.html">PROYECTS</a>
+    <a class="ghostlink" href="/pases.html">RQ-PRODUCCION</a>
+    <a class="ghostlink" href="/.auth/logout">SALIR</a>
   </div>
 </div>
 

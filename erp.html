@@ -27,6 +27,8 @@
   .grow{flex:1}
   .ghostlink{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px}
   .ghostlink:hover{background:var(--brand-soft);color:var(--brand-2)}
+  .ghostlink.active{background:var(--brand-soft);color:var(--brand-2);font-weight:700}
+  .appbar .inner{flex-wrap:wrap}
   .wrap{max-width:900px;margin:0 auto;padding:22px}
   h1{font-size:22px;margin:0 0 4px;font-weight:750;letter-spacing:-.01em}
   .lead{color:var(--muted);margin:0 0 20px;font-size:13.5px}
@@ -91,10 +93,13 @@
     <div class="logo">RQ</div>
     <div class="brand-t"><b>RQ-IT</b><span>Solicitud de Sistema / ERP</span></div>
     <div class="grow"></div>
-    <a class="ghostlink" href="/index.html">Infraestructura</a>
-    <a class="ghostlink" href="/generales.html">General</a>
-    <a class="ghostlink" href="/dashboard.html">Dashboard</a>
-    <a class="ghostlink" href="/gantt.html">Proyectos</a>
+    <a class="ghostlink" href="/dashboard.html">DASHBOARD</a>
+    <a class="ghostlink" href="/index.html">RQ-IT</a>
+    <a class="ghostlink active" href="/erp.html">RQ-ERP</a>
+    <a class="ghostlink" href="/generales.html">RQ-GEN</a>
+    <a class="ghostlink" href="/gantt.html">PROYECTS</a>
+    <a class="ghostlink" href="/pases.html">RQ-PRODUCCION</a>
+    <a class="ghostlink" href="/.auth/logout">SALIR</a>
   </div>
 </div>
 
