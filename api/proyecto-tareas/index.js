@@ -40,7 +40,7 @@ async function handleList(context, req, respond) {
     const r = pool.request();
     r.input('pid', sql.Int, pid);
     const result = await r.query(
-      'SELECT Id, ProyectoId, Nombre, FechaInicio, FechaFin, Progreso, Responsable, DependenciaId, EsHito, Orden ' +
+      'SELECT Id, ProyectoId, Nombre, FechaInicio, FechaFin, Progreso, Responsable, DependenciaId, TareaPadreId, EsHito, Orden ' +
       'FROM dbo.ProyectoTareas WHERE ProyectoId = @pid ORDER BY ISNULL(Orden, 9999), FechaInicio, Id'
     );
     return respond(200, { ok: true, items: result.recordset || [] });
@@ -66,11 +66,12 @@ async function handleCreate(context, req, respond) {
     r.input('Progreso', sql.Int, clampProg(b.progreso) || 0);
     r.input('Responsable', sql.NVarChar(200), str(b.responsable, 200));
     r.input('DependenciaId', sql.Int, toInt(b.dependenciaId));
+    r.input('TareaPadreId', sql.Int, toInt(b.tareaPadreId));
     r.input('EsHito', sql.Bit, (b.esHito === true || b.esHito === 1 || b.esHito === '1') ? 1 : 0);
     r.input('Orden', sql.Int, toInt(b.orden));
     const result = await r.query(
-      'INSERT INTO dbo.ProyectoTareas (ProyectoId, Nombre, FechaInicio, FechaFin, Progreso, Responsable, DependenciaId, EsHito, Orden) ' +
-      'OUTPUT INSERTED.Id VALUES (@ProyectoId, @Nombre, @FechaInicio, @FechaFin, @Progreso, @Responsable, @DependenciaId, @EsHito, @Orden)'
+      'INSERT INTO dbo.ProyectoTareas (ProyectoId, Nombre, FechaInicio, FechaFin, Progreso, Responsable, DependenciaId, TareaPadreId, EsHito, Orden) ' +
+      'OUTPUT INSERTED.Id VALUES (@ProyectoId, @Nombre, @FechaInicio, @FechaFin, @Progreso, @Responsable, @DependenciaId, @TareaPadreId, @EsHito, @Orden)'
     );
     const id = result.recordset && result.recordset[0] ? result.recordset[0].Id : null;
     return respond(201, { ok: true, id: id });
@@ -94,13 +95,14 @@ async function handleUpdate(context, req, respond) {
     r.input('Progreso', sql.Int, clampProg(b.progreso));
     r.input('Responsable', sql.NVarChar(200), str(b.responsable, 200));
     r.input('DependenciaId', sql.Int, toInt(b.dependenciaId));
+    r.input('TareaPadreId', sql.Int, toInt(b.tareaPadreId));
     r.input('EsHito', sql.Bit, (b.esHito === true || b.esHito === 1 || b.esHito === '1') ? 1 : 0);
     r.input('Orden', sql.Int, toInt(b.orden));
     const result = await r.query(
       'UPDATE dbo.ProyectoTareas SET ' +
       'Nombre = COALESCE(@Nombre, Nombre), FechaInicio = @FechaInicio, FechaFin = @FechaFin, ' +
       'Progreso = COALESCE(@Progreso, Progreso), Responsable = @Responsable, DependenciaId = @DependenciaId, ' +
-      'EsHito = @EsHito, Orden = @Orden, FechaActualizacion = SYSUTCDATETIME() WHERE Id = @Id'
+      'TareaPadreId = @TareaPadreId, EsHito = @EsHito, Orden = @Orden, FechaActualizacion = SYSUTCDATETIME() WHERE Id = @Id'
     );
     const affected = result.rowsAffected && result.rowsAffected[0] ? result.rowsAffected[0] : 0;
     if (!affected) return respond(404, { ok: false, error: 'Tarea no encontrada.' });

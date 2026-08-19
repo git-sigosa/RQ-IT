@@ -63,9 +63,19 @@
   .gantt{display:grid;grid-template-columns:300px 1fr;overflow:hidden}
   .gcol-h{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0}
   .gtasks{border-right:1px solid var(--line);min-width:0}
-  .grow2{display:flex;align-items:center;gap:8px;padding:0 12px;height:44px;border-bottom:1px solid var(--line);font-size:13px}
+  .grow2{display:flex;flex-direction:column;justify-content:center;gap:1px;padding:0 12px;height:44px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+  .grow2:hover{background:var(--brand-soft)}
+  .grow2 .tmain{display:flex;align-items:center;gap:8px}
   .grow2 .tname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-  .grow2 .tr{color:var(--muted);font-size:11.5px}
+  .grow2 .tr{color:var(--muted);font-size:11px;flex:none;font-variant-numeric:tabular-nums}
+  .grow2 .meta{color:var(--muted);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grow2.parent{background:linear-gradient(var(--brand-soft),transparent)}
+  .grow2.parent .tname{font-weight:800}
+  .grow2.child{padding-left:26px}
+  .grow2.child .tname{font-weight:500}
+  .gsummary{position:absolute;top:18px;height:8px;background:var(--ink);opacity:.55;border-radius:2px;cursor:pointer}
+  .gsummary::before,.gsummary::after{content:"";position:absolute;bottom:-3px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--ink)}
+  .gsummary::before{left:0}.gsummary::after{right:0}
   .gtimeline-wrap{overflow-x:auto}
   .gtimeline{position:relative}
   .gaxis{position:relative;height:38px;border-bottom:1px solid var(--line)}
@@ -170,9 +180,10 @@
         <div><label class="f">Responsable</label><input type="text" id="t_resp" list="usuariosDL" autocomplete="off"></div>
       </div>
       <div class="row2">
-        <div><label class="f">Depende de</label><select id="t_dep"><option value="">— Ninguna —</option></select></div>
+        <div><label class="f">Tarea principal</label><select id="t_padre"><option value="">— Es principal —</option></select></div>
         <div><label class="f">Tipo</label><select id="t_hito"><option value="0">Tarea</option><option value="1">Hito</option></select></div>
       </div>
+      <div><label class="f">Depende de</label><select id="t_dep"><option value="">— Ninguna —</option></select></div>
       <div class="status" id="taskStatus" style="margin-top:10px"></div>
     </div>
     <div class="m-foot">
@@ -307,23 +318,49 @@
     var todayLeft=daysBetween(min,today)*DAYW;
     var todayMark='<div class="gtoday" style="left:'+todayLeft+'px"><span class="cap">hoy</span></div>';
 
-    // filas de nombres
-    var names=tasks.map(function(t){
-      return '<div class="grow2" data-id="'+t.Id+'"><span class="tname" title="'+esc(t.Nombre)+'">'+(t.EsHito?'◆ ':'')+esc(t.Nombre)+'</span><span class="tr">'+((t.Progreso!=null&&!t.EsHito)?(t.Progreso+'%'):'')+'</span></div>';
+    // jerarquía: principales con sus secundarias
+    var byId={}; tasks.forEach(function(t){ byId[t.Id]=t; });
+    var kids={}; tasks.forEach(function(t){ if(t.TareaPadreId && byId[t.TareaPadreId]){ (kids[t.TareaPadreId]=kids[t.TareaPadreId]||[]).push(t); } });
+    function childrenOf(id){ return kids[id]||[]; }
+    function respOf(t){ if(t.Responsable) return t.Responsable; if(t.TareaPadreId && byId[t.TareaPadreId]) return byId[t.TareaPadreId].Responsable||''; return ''; }
+    function spanOf(t){
+      var ss=[], ee=[]; var s0=parseD(t.FechaInicio), e0=parseD(t.FechaFin)||s0; if(s0)ss.push(s0); if(e0)ee.push(e0);
+      childrenOf(t.Id).forEach(function(c){ var cs=parseD(c.FechaInicio), ce=parseD(c.FechaFin)||cs; if(cs)ss.push(cs); if(ce)ee.push(ce); });
+      if(!ss.length) return null;
+      return { s:new Date(Math.min.apply(null,ss.map(function(d){return d.getTime();}))), e:new Date(Math.max.apply(null,ee.map(function(d){return d.getTime();}))) };
+    }
+    function rollupProg(t){ var cs=childrenOf(t.Id).filter(function(c){return !c.EsHito;}); if(!cs.length) return t.Progreso||0; var sum=0; cs.forEach(function(c){sum+=(c.Progreso||0);}); return Math.round(sum/cs.length); }
+    var ordered=[];
+    tasks.forEach(function(t){
+      if(t.TareaPadreId && byId[t.TareaPadreId]) return;
+      ordered.push({t:t, level:0, parent:childrenOf(t.Id).length>0});
+      childrenOf(t.Id).forEach(function(c){ ordered.push({t:c, level:1, parent:false}); });
+    });
+
+    // filas de nombres (con responsable heredado, fechas y avance)
+    var names=ordered.map(function(o){
+      var t=o.t, prog=o.parent?rollupProg(t):(t.Progreso||0);
+      var s=parseD(t.FechaInicio), e=parseD(t.FechaFin)||s;
+      var fechas=s?(fmtShort(s)+(e&&daysBetween(s,e)>0?(' – '+fmtShort(e)):'')):'';
+      var name=(t.EsHito?'◆ ':(o.level?'└ ':''))+esc(t.Nombre);
+      return '<div class="grow2'+(o.level?' child':'')+(o.parent?' parent':'')+'" data-id="'+t.Id+'">'+
+        '<div class="tmain"><span class="tname" title="'+esc(t.Nombre)+'">'+name+'</span>'+(t.EsHito?'':'<span class="tr">'+prog+'%</span>')+'</div>'+
+        '<div class="meta">'+esc(respOf(t)||'—')+(fechas?(' · '+fechas):'')+'</div>'+
+      '</div>';
     }).join('');
 
-    // bandas/barras
-    var bands=tasks.map(function(t){
-      var s=parseD(t.FechaInicio), e=parseD(t.FechaFin)||s;
-      var inner='';
-      if(s){
-        var left=daysBetween(min,s)*DAYW;
-        if(t.EsHito){
-          inner='<div class="ghito" data-id="'+t.Id+'" style="left:'+(left-8)+'px" title="'+esc(t.Nombre)+'"></div>';
-        } else {
-          var dur=Math.max(1,(e?daysBetween(s,e):0)+1);
-          var w=dur*DAYW; var prog=Math.max(0,Math.min(100,t.Progreso||0));
-          inner='<div class="gbar" data-id="'+t.Id+'" style="left:'+left+'px;width:'+w+'px"><div class="fill" style="width:'+prog+'%"></div><span class="lbl">'+esc(t.Nombre)+'</span></div>';
+    // bandas/barras (padre = barra resumen; secundaria/tarea = barra normal; hito = rombo)
+    var bands=ordered.map(function(o){
+      var t=o.t, inner='';
+      if(o.parent){
+        var sp=spanOf(t);
+        if(sp){ var l=daysBetween(min,sp.s)*DAYW, w=Math.max(4,(daysBetween(sp.s,sp.e)+1)*DAYW); inner='<div class="gsummary" data-id="'+t.Id+'" style="left:'+l+'px;width:'+w+'px" title="'+esc(t.Nombre)+'"></div>'; }
+      } else {
+        var s=parseD(t.FechaInicio), e=parseD(t.FechaFin)||s;
+        if(s){ var left=daysBetween(min,s)*DAYW;
+          if(t.EsHito){ inner='<div class="ghito" data-id="'+t.Id+'" style="left:'+(left-8)+'px" title="'+esc(t.Nombre)+'"></div>'; }
+          else { var dur=Math.max(1,(e?daysBetween(s,e):0)+1), w=dur*DAYW, prog=Math.max(0,Math.min(100,t.Progreso||0));
+            inner='<div class="gbar" data-id="'+t.Id+'" style="left:'+left+'px;width:'+w+'px"><div class="fill" style="width:'+prog+'%"></div><span class="lbl">'+esc(t.Nombre)+'</span></div>'; }
         }
       }
       return '<div class="gband" style="width:'+width+'px">'+inner+'</div>';
@@ -340,7 +377,7 @@
     '</div>';
 
     // click en barras/hitos/filas -> editar
-    Array.prototype.forEach.call(area.querySelectorAll('.gbar,.ghito,.grow2'), function(node){
+    Array.prototype.forEach.call(area.querySelectorAll('.gbar,.ghito,.gsummary,.grow2'), function(node){
       node.addEventListener('click', function(){ var id=+node.getAttribute('data-id'); var t=tasks.filter(function(x){return x.Id===id;})[0]; if(t) openTaskModal(t); });
     });
   }
@@ -381,15 +418,22 @@
     el('t_hito').value=t&&t.EsHito?'1':'0';
     // dependencias
     var dep=el('t_dep'); dep.innerHTML='<option value="">— Ninguna —</option>'+tasks.filter(function(x){return !t||x.Id!==t.Id;}).map(function(x){return '<option value="'+x.Id+'"'+((t&&t.DependenciaId===x.Id)?' selected':'')+'>'+esc(x.Nombre)+'</option>';}).join('');
+    // tarea principal (solo principales, sin hitos, distinta de sí misma)
+    var padres=tasks.filter(function(x){ return (!t||x.Id!==t.Id) && !x.TareaPadreId && !x.EsHito; });
+    el('t_padre').innerHTML='<option value="">— Es principal —</option>'+padres.map(function(x){return '<option value="'+x.Id+'"'+((t&&t.TareaPadreId===x.Id)?' selected':'')+'>'+esc(x.Nombre)+'</option>';}).join('');
     el('btnDeleteTask').style.display = t?'inline-block':'none';
     el('taskStatus').textContent=''; openModal('taskModal');
   }
+  el('t_padre').addEventListener('change', function(){
+    var pid=+this.value; if(!pid) return; var p=null; tasks.forEach(function(x){ if(x.Id===pid) p=x; });
+    if(p && p.Responsable && !el('t_resp').value.trim()) el('t_resp').value=p.Responsable; // hereda responsable
+  });
   el('btnSaveTask').addEventListener('click', function(){
     var id=el('t_id').value, nombre=el('t_nombre').value.trim();
     if(!nombre){ el('taskStatus').textContent='El nombre es obligatorio.'; el('taskStatus').className='status err'; return; }
     var body={ proyectoId:current.Id, nombre:nombre, fechaInicio:el('t_inicio').value||null, fechaFin:el('t_fin').value||null,
       progreso:parseInt(el('t_prog').value||'0',10), responsable:el('t_resp').value.trim(),
-      dependenciaId:el('t_dep').value||null, esHito:el('t_hito').value==='1' };
+      dependenciaId:el('t_dep').value||null, tareaPadreId:el('t_padre').value||null, esHito:el('t_hito').value==='1' };
     el('taskStatus').textContent='Guardando…'; el('taskStatus').className='status';
     var url=id?(T_API+'/'+id):T_API, method=id?'PATCH':'POST';
     fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
