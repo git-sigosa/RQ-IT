@@ -141,6 +141,15 @@
   .nota-add textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(124,58,237,.14)}
   .nota-row{display:flex;gap:8px;align-items:center;margin-top:8px}
   .nota-row input[type=date]{padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font-size:12.5px}
+  .docs{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+  .doc-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 11px;background:var(--bg)}
+  .doc-item a{color:var(--accent);text-decoration:none;font-weight:600;font-size:13px;flex:1;word-break:break-word}
+  .doc-item a:hover{text-decoration:underline}
+  .doc-item .meta{color:var(--muted);font-size:11.5px;white-space:nowrap}
+  .doc-del{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+  .doc-del:hover{color:var(--err)}
+  .doc-add input[type=file]{font-size:12.5px;color:var(--muted);max-width:100%}
+  .share-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
   @media (max-width:640px){ .wrap{padding:14px} .appbar .inner{padding:10px 14px} .brand-t span{display:none} .dkv{grid-template-columns:1fr} }
 </style>
 </head>
@@ -286,7 +295,7 @@
     return out+complex;
   }
   /* ---- Notas / Avances ---- */
-  var detailIt=null, detailData=null, detailNotas=[];
+  var detailIt=null, detailData=null, detailNotas=[], detailDocs=[];
   function notesUI(){
     return '<div class="dsec"><h4>Notas / Avances</h4>'+
       '<div id="notasList" class="notas"><div class="state" style="padding:12px">Cargando…</div></div>'+
@@ -330,6 +339,77 @@
     });
   }
 
+  /* ---- Documentación adjunta (en SQL) + compartir/notificar ---- */
+  function fmtSize(n){ if(n==null) return ''; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+  function docsUI(){
+    var link=location.origin+'/dashboard.html?tipo='+encodeURIComponent(detailIt.tipo)+'&id='+detailIt.id;
+    return '<div class="dsec"><h4>Documentación</h4>'+
+      '<div id="docsList" class="docs"><div class="state" style="padding:12px">Cargando…</div></div>'+
+      '<div class="doc-add"><div class="nota-row"><input type="file" id="docFile"><button class="btn primary sm" id="docAdd" style="padding:7px 12px">Adjuntar</button><span class="save-msg" id="docMsg"></span></div></div>'+
+      '<div class="share-row">'+
+        '<input type="hidden" id="shareLink" value="'+esc(link)+'">'+
+        '<button class="btn sm" id="btnCopyLink" style="padding:7px 12px">Copiar link de la solicitud</button>'+
+        '<button class="btn sm" id="btnNotify" style="padding:7px 12px">Notificar por correo</button>'+
+        '<span class="save-msg" id="shareMsg"></span>'+
+      '</div></div>';
+  }
+  function renderDocs(items){
+    if(!items.length) return '<div class="state" style="padding:12px">Sin documentos adjuntos.</div>';
+    return items.map(function(d){
+      return '<div class="doc-item"><a href="/api/documentos/'+d.Id+'" target="_blank" rel="noopener">'+esc(d.Nombre)+'</a>'+
+        '<span class="meta">'+esc(fmtSize(d.Tamano))+(d.Autor?(' · '+esc(d.Autor)):'')+'</span>'+
+        '<button class="doc-del" data-id="'+d.Id+'" title="Eliminar">×</button></div>';
+    }).join('');
+  }
+  function loadDocs(){
+    if(!detailIt) return; var box=document.getElementById('docsList'); if(!box) return;
+    fetch('/api/documentos?tipo='+encodeURIComponent(detailIt.tipo)+'&solicitudId='+detailIt.id)
+      .then(function(r){return r.json();}).then(function(d){
+        if(!d||!d.ok){ box.innerHTML='<div class="state err-txt" style="padding:12px">'+esc((d&&d.error)||'No se pudieron cargar los documentos')+'</div>'; return; }
+        detailDocs=d.items||[];
+        box.innerHTML=renderDocs(detailDocs);
+        Array.prototype.forEach.call(box.querySelectorAll('.doc-del'), function(b){
+          b.addEventListener('click', function(){ if(!confirm('¿Eliminar este documento?')) return; fetch('/api/documentos/'+b.getAttribute('data-id'),{method:'DELETE'}).then(function(){ loadDocs(); }).catch(function(){}); });
+        });
+      }).catch(function(){ box.innerHTML='<div class="state err-txt" style="padding:12px">Error de red.</div>'; });
+  }
+  function bindDocs(){
+    var add=document.getElementById('docAdd');
+    if(add) add.addEventListener('click', function(){
+      var f=document.getElementById('docFile'), msg=document.getElementById('docMsg');
+      var file=f.files&&f.files[0];
+      if(!file){ msg.textContent='Elige un archivo.'; msg.className='save-msg err'; return; }
+      if(file.size>10*1024*1024){ msg.textContent='Máximo 10 MB.'; msg.className='save-msg err'; return; }
+      add.disabled=true; msg.textContent='Subiendo…'; msg.className='save-msg';
+      var reader=new FileReader();
+      reader.onload=function(){
+        var b64=String(reader.result).split(',')[1]||'';
+        fetch('/api/documentos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:detailIt.tipo,solicitudId:detailIt.id,nombre:file.name,contentType:file.type,base64:b64,autor:currentUser})})
+          .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,d:d};});})
+          .then(function(res){ add.disabled=false;
+            if(res.ok&&res.d&&res.d.ok){ f.value=''; msg.textContent=''; loadDocs(); }
+            else { msg.textContent='✗ '+((res.d&&res.d.error)||'Error'); msg.className='save-msg err'; }
+          }).catch(function(){ add.disabled=false; msg.textContent='✗ Sin conexión'; msg.className='save-msg err'; });
+      };
+      reader.onerror=function(){ add.disabled=false; msg.textContent='✗ No se pudo leer el archivo'; msg.className='save-msg err'; };
+      reader.readAsDataURL(file);
+    });
+    var copy=document.getElementById('btnCopyLink');
+    if(copy) copy.addEventListener('click', function(){
+      var link=document.getElementById('shareLink').value, sm=document.getElementById('shareMsg');
+      navigator.clipboard.writeText(link).then(function(){ sm.textContent='✓ Link copiado'; sm.className='save-msg ok'; }, function(){ sm.textContent=link; });
+    });
+    var notify=document.getElementById('btnNotify');
+    if(notify) notify.addEventListener('click', function(){
+      var link=document.getElementById('shareLink').value;
+      var titulo=(detailData&&(detailData.Titulo||detailData.Aplicacion))||('#'+detailIt.id);
+      var lines=['Solicitud: '+titulo,'','Detalle (requiere iniciar sesión): '+link,''];
+      if((detailDocs||[]).length){ lines.push('Documentación:'); detailDocs.forEach(function(d){ lines.push('- '+d.Nombre+': '+location.origin+'/api/documentos/'+d.Id); }); }
+      else { lines.push('(sin documentos adjuntos)'); }
+      window.location.href='mailto:?subject='+encodeURIComponent('Documentación / Pase a producción — '+titulo)+'&body='+encodeURIComponent(lines.join('\r\n'));
+    });
+  }
+
   function openDetail(it){
     document.getElementById('detailTitle').textContent = (it.Titulo||it.Aplicacion||('#'+it.Id));
     document.getElementById('detailBody').innerHTML='<div class="state"><div class="spinner"></div>Cargando…</div>';
@@ -338,9 +418,9 @@
     fetch(API[it._tipo]+'/'+it.Id).then(function(r){ return r.json(); }).then(function(d){
       if(!d||!d.ok){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">'+esc((d&&d.error)||'No se pudo cargar el detalle')+'</div>'; return; }
       document.getElementById('detailTitle').textContent = (d.item.Titulo||d.item.Aplicacion||('#'+d.item.Id));
-      detailIt={ tipo: it._tipo, id: d.item.Id }; detailData=d.item; detailNotas=[];
-      document.getElementById('detailBody').innerHTML=renderDetail(d.item)+notesUI();
-      bindNotas(); loadNotas();
+      detailIt={ tipo: it._tipo, id: d.item.Id }; detailData=d.item; detailNotas=[]; detailDocs=[];
+      document.getElementById('detailBody').innerHTML=renderDetail(d.item)+docsUI()+notesUI();
+      bindDocs(); loadDocs(); bindNotas(); loadNotas();
     }).catch(function(){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">Error de red al cargar el detalle.</div>'; });
   }
   function buildDetailPrintHTML(item, notas){
@@ -355,6 +435,7 @@
       '.nota{border:1px solid #cbd5e1;border-radius:7px;padding:8px 10px;margin-bottom:6px}.nota .m{color:#64748b;font-size:11px;margin-bottom:3px}'+
       '@media print{body{margin:12mm}}</style></head><body>'+
       '<h1>'+esc(title)+'</h1>'+ renderDetail(item) +
+      '<div class="dsec"><h4>Documentación</h4>'+((detailDocs&&detailDocs.length)?detailDocs.map(function(d){return '<div class="nota"><div>'+esc(d.Nombre)+'</div><div class="m">'+esc(location.origin+'/api/documentos/'+d.Id)+'</div></div>';}).join(''):'<div style="color:#64748b">Sin documentos.</div>')+'</div>'+
       '<div class="dsec"><h4>Notas / Avances</h4>'+notasHtml+'</div></body></html>';
   }
   function downloadDetailPdf(){
@@ -556,6 +637,14 @@
   var t=null; document.getElementById('q').addEventListener('input', function(){ clearTimeout(t); t=setTimeout(renderTable,300); });
 
   loadAll();
+
+  /* Link directo: /dashboard.html?tipo=infra&id=2 abre el detalle */
+  (function(){
+    try{
+      var p=new URLSearchParams(location.search), tipo=p.get('tipo'), id=p.get('id');
+      if(tipo && id && API[tipo]) openDetail({ _tipo: tipo, Id: parseInt(id,10) });
+    }catch(e){}
+  })();
 })();
 </script>
 </body>
