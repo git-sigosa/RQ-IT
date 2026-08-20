@@ -436,6 +436,9 @@
       '<div><label>Ventana fin</label><input type="datetime-local" id="paseFin"></div>'+
       '<div><label>Responsable</label><input type="text" id="paseResp" list="usuariosDL" autocomplete="off"></div>'+
       '<div><label>Aprobador</label><input type="text" id="paseAprob" list="usuariosDL" autocomplete="off"></div>'+
+      '<div><label>Con quién se planifica</label><input type="text" id="paseContraparte" list="usuariosDL" autocomplete="off"></div>'+
+      '<div><label>Recibe la documentación</label><input type="text" id="paseRecDoc" list="usuariosDL" autocomplete="off"></div>'+
+      '<div><label>Recibe la inducción</label><input type="text" id="paseRecInd" list="usuariosDL" autocomplete="off"></div>'+
       '<div class="full"><label>Plan de rollback</label><textarea id="paseRollback" placeholder="Pasos para revertir si el pase falla…"></textarea></div>'+
       '<div class="full"><label>Entregables para aprobar</label>'+
         '<div class="pase-gates">'+
@@ -463,6 +466,9 @@
       if(g('gFun')) g('gFun').checked=!!p.DocFuncional;
       if(g('gSop')) g('gSop').checked=!!p.DocSoporte;
       if(g('gInd')) g('gInd').checked=!!p.Induccion;
+      if(g('paseContraparte')) g('paseContraparte').value=p.ContrapartePlanificacion||'';
+      if(g('paseRecDoc')) g('paseRecDoc').value=p.ReceptorDocumentacion||'';
+      if(g('paseRecInd')) g('paseRecInd').value=p.ReceptorInduccion||'';
       updateGateMsg();
     }).catch(function(){});
   }
@@ -490,7 +496,8 @@
         aprobador:g('paseAprob').value.trim(),
         estado:estado,
         planRollback:g('paseRollback').value.trim(),
-        docArquitectura:g('gArq').checked, docFuncional:g('gFun').checked, docSoporte:g('gSop').checked, induccion:g('gInd').checked };
+        docArquitectura:g('gArq').checked, docFuncional:g('gFun').checked, docSoporte:g('gSop').checked, induccion:g('gInd').checked,
+        contrapartePlanificacion:g('paseContraparte').value.trim(), receptorDocumentacion:g('paseRecDoc').value.trim(), receptorInduccion:g('paseRecInd').value.trim() };
       fetch('/api/pases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
         .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,d:d};});})
         .then(function(res){ b.disabled=false;
@@ -524,6 +531,9 @@
       kv('Ventana', ventana)+
       kv('Responsable', pv('Responsable','responsable'))+
       kv('Aprobador', pv('Aprobador','aprobador'))+
+      kv('Se planifica con', pv('ContrapartePlanificacion','contrapartePlanificacion'))+
+      kv('Recibe documentación', pv('ReceptorDocumentacion','receptorDocumentacion'))+
+      kv('Recibe inducción', pv('ReceptorInduccion','receptorInduccion'))+
       kv('Doc. Arquitectura', pv('DocArquitectura','docArquitectura')?'Sí':'No')+
       kv('Doc. Funcional', pv('DocFuncional','docFuncional')?'Sí':'No')+
       kv('Doc. Soporte', pv('DocSoporte','docSoporte')?'Sí':'No')+

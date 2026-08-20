@@ -85,14 +85,18 @@ async function handleUpsert(context, req, respond) {
     r.input('DocFuncional', sql.Bit, b.docFuncional ? 1 : 0);
     r.input('DocSoporte', sql.Bit, b.docSoporte ? 1 : 0);
     r.input('Induccion', sql.Bit, b.induccion ? 1 : 0);
+    r.input('ReceptorDocumentacion', sql.NVarChar(200), str(b.receptorDocumentacion, 200));
+    r.input('ReceptorInduccion', sql.NVarChar(200), str(b.receptorInduccion, 200));
+    r.input('ContrapartePlanificacion', sql.NVarChar(200), str(b.contrapartePlanificacion, 200));
     await r.query(
       'MERGE dbo.PaseProduccion AS t ' +
       'USING (SELECT @Tipo AS Tipo, @Sid AS SolicitudId) AS s ON t.Tipo=s.Tipo AND t.SolicitudId=s.SolicitudId ' +
       'WHEN MATCHED THEN UPDATE SET Titulo=@Titulo, FechaPlanificada=@FechaPlanificada, VentanaInicio=@VentanaInicio, ' +
       'VentanaFin=@VentanaFin, Responsable=@Responsable, Aprobador=@Aprobador, Estado=@Estado, PlanRollback=@PlanRollback, ' +
-      'DocArquitectura=@DocArquitectura, DocFuncional=@DocFuncional, DocSoporte=@DocSoporte, Induccion=@Induccion, FechaActualizacion=SYSUTCDATETIME() ' +
-      'WHEN NOT MATCHED THEN INSERT (Tipo, SolicitudId, Titulo, FechaPlanificada, VentanaInicio, VentanaFin, Responsable, Aprobador, Estado, PlanRollback, DocArquitectura, DocFuncional, DocSoporte, Induccion, FechaActualizacion) ' +
-      'VALUES (@Tipo, @Sid, @Titulo, @FechaPlanificada, @VentanaInicio, @VentanaFin, @Responsable, @Aprobador, @Estado, @PlanRollback, @DocArquitectura, @DocFuncional, @DocSoporte, @Induccion, SYSUTCDATETIME());'
+      'DocArquitectura=@DocArquitectura, DocFuncional=@DocFuncional, DocSoporte=@DocSoporte, Induccion=@Induccion, ' +
+      'ReceptorDocumentacion=@ReceptorDocumentacion, ReceptorInduccion=@ReceptorInduccion, ContrapartePlanificacion=@ContrapartePlanificacion, FechaActualizacion=SYSUTCDATETIME() ' +
+      'WHEN NOT MATCHED THEN INSERT (Tipo, SolicitudId, Titulo, FechaPlanificada, VentanaInicio, VentanaFin, Responsable, Aprobador, Estado, PlanRollback, DocArquitectura, DocFuncional, DocSoporte, Induccion, ReceptorDocumentacion, ReceptorInduccion, ContrapartePlanificacion, FechaActualizacion) ' +
+      'VALUES (@Tipo, @Sid, @Titulo, @FechaPlanificada, @VentanaInicio, @VentanaFin, @Responsable, @Aprobador, @Estado, @PlanRollback, @DocArquitectura, @DocFuncional, @DocSoporte, @Induccion, @ReceptorDocumentacion, @ReceptorInduccion, @ContrapartePlanificacion, SYSUTCDATETIME());'
     );
     return respond(200, { ok: true });
   } catch (err) {
