@@ -52,7 +52,8 @@ async function handleList(context, req, respond) {
   try {
     const pool = await getPool();
     const result = await pool.request().query(
-      'SELECT Id, Tipo, SolicitudId, Titulo, FechaPlanificada, VentanaInicio, VentanaFin, Responsable, Aprobador, Estado, FechaActualizacion ' +
+      'SELECT Id, Tipo, SolicitudId, Titulo, FechaPlanificada, VentanaInicio, VentanaFin, Responsable, Aprobador, Estado, ' +
+      'DocArquitectura, DocFuncional, DocSoporte, Induccion, FechaActualizacion ' +
       'FROM dbo.PaseProduccion ORDER BY CASE WHEN FechaPlanificada IS NULL THEN 1 ELSE 0 END, FechaPlanificada, Id DESC'
     );
     return respond(200, { ok: true, items: result.recordset || [] });
@@ -80,13 +81,18 @@ async function handleUpsert(context, req, respond) {
     r.input('Aprobador', sql.NVarChar(200), str(b.aprobador, 200));
     r.input('Estado', sql.NVarChar(30), str(b.estado, 30) || 'Planificado');
     r.input('PlanRollback', sql.NVarChar(sql.MAX), str(b.planRollback));
+    r.input('DocArquitectura', sql.Bit, b.docArquitectura ? 1 : 0);
+    r.input('DocFuncional', sql.Bit, b.docFuncional ? 1 : 0);
+    r.input('DocSoporte', sql.Bit, b.docSoporte ? 1 : 0);
+    r.input('Induccion', sql.Bit, b.induccion ? 1 : 0);
     await r.query(
       'MERGE dbo.PaseProduccion AS t ' +
       'USING (SELECT @Tipo AS Tipo, @Sid AS SolicitudId) AS s ON t.Tipo=s.Tipo AND t.SolicitudId=s.SolicitudId ' +
       'WHEN MATCHED THEN UPDATE SET Titulo=@Titulo, FechaPlanificada=@FechaPlanificada, VentanaInicio=@VentanaInicio, ' +
-      'VentanaFin=@VentanaFin, Responsable=@Responsable, Aprobador=@Aprobador, Estado=@Estado, PlanRollback=@PlanRollback, FechaActualizacion=SYSUTCDATETIME() ' +
-      'WHEN NOT MATCHED THEN INSERT (Tipo, SolicitudId, Titulo, FechaPlanificada, VentanaInicio, VentanaFin, Responsable, Aprobador, Estado, PlanRollback, FechaActualizacion) ' +
-      'VALUES (@Tipo, @Sid, @Titulo, @FechaPlanificada, @VentanaInicio, @VentanaFin, @Responsable, @Aprobador, @Estado, @PlanRollback, SYSUTCDATETIME());'
+      'VentanaFin=@VentanaFin, Responsable=@Responsable, Aprobador=@Aprobador, Estado=@Estado, PlanRollback=@PlanRollback, ' +
+      'DocArquitectura=@DocArquitectura, DocFuncional=@DocFuncional, DocSoporte=@DocSoporte, Induccion=@Induccion, FechaActualizacion=SYSUTCDATETIME() ' +
+      'WHEN NOT MATCHED THEN INSERT (Tipo, SolicitudId, Titulo, FechaPlanificada, VentanaInicio, VentanaFin, Responsable, Aprobador, Estado, PlanRollback, DocArquitectura, DocFuncional, DocSoporte, Induccion, FechaActualizacion) ' +
+      'VALUES (@Tipo, @Sid, @Titulo, @FechaPlanificada, @VentanaInicio, @VentanaFin, @Responsable, @Aprobador, @Estado, @PlanRollback, @DocArquitectura, @DocFuncional, @DocSoporte, @Induccion, SYSUTCDATETIME());'
     );
     return respond(200, { ok: true });
   } catch (err) {

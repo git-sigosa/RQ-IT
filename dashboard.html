@@ -159,6 +159,9 @@
   .pase-form input:focus,.pase-form select:focus,.pase-form textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(124,58,237,.14)}
   .pase-form textarea{min-height:60px;resize:vertical}
   @media (max-width:560px){.pase-form{grid-template-columns:1fr}}
+  .pase-gates{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px;margin-top:4px}
+  .pase-gates label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:var(--ink);cursor:pointer}
+  @media (max-width:560px){.pase-gates{grid-template-columns:1fr}}
   @media (max-width:640px){ .wrap{padding:14px} .appbar .inner{padding:10px 14px} .brand-t span{display:none} .dkv{grid-template-columns:1fr} }
 </style>
 </head>
@@ -434,13 +437,20 @@
       '<div><label>Responsable</label><input type="text" id="paseResp" list="usuariosDL" autocomplete="off"></div>'+
       '<div><label>Aprobador</label><input type="text" id="paseAprob" list="usuariosDL" autocomplete="off"></div>'+
       '<div class="full"><label>Plan de rollback</label><textarea id="paseRollback" placeholder="Pasos para revertir si el pase falla…"></textarea></div>'+
+      '<div class="full"><label>Entregables para aprobar</label>'+
+        '<div class="pase-gates">'+
+          '<label><input type="checkbox" id="gArq"> Documentación de Arquitectura</label>'+
+          '<label><input type="checkbox" id="gFun"> Documentación Funcional</label>'+
+          '<label><input type="checkbox" id="gSop"> Documentación de Soporte</label>'+
+          '<label><input type="checkbox" id="gInd"> Inducción</label>'+
+        '</div><div class="save-msg" id="gateMsg" style="margin-top:6px"></div></div>'+
       '<div class="full"><button class="btn primary sm" id="paseSave" style="padding:8px 14px">Guardar pase</button> <span class="save-msg" id="paseMsg"></span></div>'+
     '</div></div>';
   }
   function loadPase(){
     if(!detailIt) return;
     fetch('/api/pases?tipo='+encodeURIComponent(detailIt.tipo)+'&solicitudId='+detailIt.id).then(function(r){return r.json();}).then(function(d){
-      if(!d||!d.ok) return; detailPase=d.item||null; var p=d.item; if(!p) return;
+      if(!d||!d.ok){ updateGateMsg(); return; } detailPase=d.item||null; var p=d.item; if(!p){ updateGateMsg(); return; }
       var g=function(id){return document.getElementById(id);};
       if(p.FechaPlanificada&&g('paseFecha')) g('paseFecha').value=fmtDate(p.FechaPlanificada);
       if(p.VentanaInicio&&g('paseIni')) g('paseIni').value=isoToLocal(p.VentanaInicio);
@@ -449,21 +459,38 @@
       if(g('paseAprob')) g('paseAprob').value=p.Aprobador||'';
       if(p.Estado&&g('paseEstado')) g('paseEstado').value=p.Estado;
       if(g('paseRollback')) g('paseRollback').value=p.PlanRollback||'';
+      if(g('gArq')) g('gArq').checked=!!p.DocArquitectura;
+      if(g('gFun')) g('gFun').checked=!!p.DocFuncional;
+      if(g('gSop')) g('gSop').checked=!!p.DocSoporte;
+      if(g('gInd')) g('gInd').checked=!!p.Induccion;
+      updateGateMsg();
     }).catch(function(){});
+  }
+  function paseGatesCount(){ return ['gArq','gFun','gSop','gInd'].filter(function(id){var e=document.getElementById(id);return e&&e.checked;}).length; }
+  function updateGateMsg(){
+    var m=document.getElementById('gateMsg'); if(!m) return; var n=paseGatesCount();
+    if(n>=4){ m.textContent='✓ Entregables completos — listo para aprobar.'; m.className='save-msg ok'; }
+    else { m.textContent='Faltan '+(4-n)+' entregable(s) para poder aprobar.'; m.className='save-msg'; }
   }
   function bindPase(){
     var b=document.getElementById('paseSave'); if(!b) return;
+    ['gArq','gFun','gSop','gInd'].forEach(function(id){ var e=document.getElementById(id); if(e) e.addEventListener('change', updateGateMsg); });
     b.addEventListener('click', function(){
-      var msg=document.getElementById('paseMsg'); b.disabled=true; msg.textContent='Guardando…'; msg.className='save-msg';
+      var msg=document.getElementById('paseMsg');
+      var estado=document.getElementById('paseEstado').value;
+      if(estado==='Aprobado' && paseGatesCount()<4){ msg.textContent='No se puede aprobar: faltan entregables ('+paseGatesCount()+'/4).'; msg.className='save-msg err'; return; }
+      b.disabled=true; msg.textContent='Guardando…'; msg.className='save-msg';
+      var g=function(id){return document.getElementById(id);};
       var body={ tipo:detailIt.tipo, solicitudId:detailIt.id,
         titulo:(detailData&&(detailData.Titulo||detailData.Aplicacion))||('#'+detailIt.id),
-        fechaPlanificada:document.getElementById('paseFecha').value||null,
-        ventanaInicio:document.getElementById('paseIni').value||null,
-        ventanaFin:document.getElementById('paseFin').value||null,
-        responsable:document.getElementById('paseResp').value.trim(),
-        aprobador:document.getElementById('paseAprob').value.trim(),
-        estado:document.getElementById('paseEstado').value,
-        planRollback:document.getElementById('paseRollback').value.trim() };
+        fechaPlanificada:g('paseFecha').value||null,
+        ventanaInicio:g('paseIni').value||null,
+        ventanaFin:g('paseFin').value||null,
+        responsable:g('paseResp').value.trim(),
+        aprobador:g('paseAprob').value.trim(),
+        estado:estado,
+        planRollback:g('paseRollback').value.trim(),
+        docArquitectura:g('gArq').checked, docFuncional:g('gFun').checked, docSoporte:g('gSop').checked, induccion:g('gInd').checked };
       fetch('/api/pases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
         .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,d:d};});})
         .then(function(res){ b.disabled=false;
@@ -497,6 +524,10 @@
       kv('Ventana', ventana)+
       kv('Responsable', pv('Responsable','responsable'))+
       kv('Aprobador', pv('Aprobador','aprobador'))+
+      kv('Doc. Arquitectura', pv('DocArquitectura','docArquitectura')?'Sí':'No')+
+      kv('Doc. Funcional', pv('DocFuncional','docFuncional')?'Sí':'No')+
+      kv('Doc. Soporte', pv('DocSoporte','docSoporte')?'Sí':'No')+
+      kv('Inducción', pv('Induccion','induccion')?'Sí':'No')+
       kv('Plan de rollback', pv('PlanRollback','planRollback'))+
     '</div>';
   }
