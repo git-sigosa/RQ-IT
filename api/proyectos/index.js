@@ -36,10 +36,16 @@ function toDate(v) { var s = str(v); if (!s) return null; var d = new Date(s); r
 async function handleList(context, req, respond) {
   try {
     const pool = await getPool();
-    const result = await pool.request().query(
-      'SELECT Id, Nombre, Descripcion, Responsable, FechaInicio, FechaFin, Estado, FechaRegistro ' +
-      'FROM dbo.Proyectos ORDER BY Nombre'
-    );
+    const resumen = req.query && (req.query.resumen === '1' || req.query.resumen === 'true');
+    const sqlText = resumen
+      ? ('SELECT p.Id, p.Nombre, p.Responsable, p.Estado, p.FechaInicio, p.FechaFin, ' +
+         'COUNT(t.Id) AS Tareas, SUM(CASE WHEN t.EsHito=1 THEN 1 ELSE 0 END) AS Hitos, ' +
+         'AVG(CASE WHEN t.EsHito=0 THEN CAST(t.Progreso AS FLOAT) END) AS Avance, ' +
+         'MIN(t.FechaInicio) AS TareaMin, MAX(t.FechaFin) AS TareaMax ' +
+         'FROM dbo.Proyectos p LEFT JOIN dbo.ProyectoTareas t ON t.ProyectoId = p.Id ' +
+         'GROUP BY p.Id, p.Nombre, p.Responsable, p.Estado, p.FechaInicio, p.FechaFin ORDER BY p.Nombre')
+      : ('SELECT Id, Nombre, Descripcion, Responsable, FechaInicio, FechaFin, Estado, FechaRegistro FROM dbo.Proyectos ORDER BY Nombre');
+    const result = await pool.request().query(sqlText);
     return respond(200, { ok: true, items: result.recordset || [] });
   } catch (err) {
     context.log.error('proyectos list: ' + err.message);

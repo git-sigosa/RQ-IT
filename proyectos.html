@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RQ-IT · Dashboard de Proyectos</title>
+<style>
+  :root{
+    --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff;
+    --bg:#f6f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b; --line:#e6e8ef;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+    --shadow-sm:0 1px 2px rgba(16,24,40,.06); --radius:16px; --ok:#16a34a; --err:#dc2626;
+    --grad:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-sm:0 1px 2px rgba(0,0,0,.35)}
+  }
+  :root[data-theme="dark"]{--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-sm:0 1px 2px rgba(0,0,0,.35)}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:"Segoe UI",Inter,system-ui,-apple-system,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.5}
+  .appbar{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
+  .appbar .inner{max-width:1240px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;flex:none;box-shadow:0 4px 12px rgba(124,58,237,.35)}
+  .brand-t{display:flex;flex-direction:column;line-height:1.15}
+  .brand-t b{font-size:15px;font-weight:700}.brand-t span{font-size:12px;color:var(--muted)}
+  .grow{flex:1}
+  .ghostlink{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px}
+  .ghostlink:hover{background:var(--brand-soft);color:var(--brand-2)}
+  .ghostlink.active{background:var(--brand-soft);color:var(--brand-2);font-weight:700}
+  .wrap{max-width:1240px;margin:0 auto;padding:22px}
+  h1{font-size:22px;margin:0 0 4px;font-weight:750;letter-spacing:-.01em}
+  .lead{color:var(--muted);margin:0 0 18px;font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+  .kpi .n{font-size:24px;font-weight:800}.kpi .l{font-size:12px;color:var(--muted);margin-top:6px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .pcard{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px 18px;transition:transform .12s,box-shadow .12s}
+  .pcard:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--brand)}
+  .pcard h3{margin:0 0 3px;font-size:15.5px;font-weight:750}
+  .pcard .sub{color:var(--muted);font-size:12px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .pill .d{width:7px;height:7px;border-radius:50%}
+  .bar{height:10px;background:var(--line);border-radius:999px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--grad);border-radius:999px}
+  .prow{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .prow .pct{font-weight:800;font-size:14px;min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+  .metrics{display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--muted)}
+  .metrics b{color:var(--ink);font-size:14px}
+  .state{padding:44px;text-align:center;color:var(--muted)}
+  .spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .err-txt{color:var(--err)}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <div class="inner">
+    <div class="logo">RQ</div>
+    <div class="brand-t"><b>RQ-IT</b><span>Dashboard de Proyectos</span></div>
+    <div class="grow"></div>
+    <a class="ghostlink" href="/dashboard.html">DASHBOARD</a>
+    <a class="ghostlink" href="/index.html">RQ-IT</a>
+    <a class="ghostlink" href="/erp.html">RQ-ERP</a>
+    <a class="ghostlink" href="/generales.html">RQ-GEN</a>
+    <a class="ghostlink active" href="/proyectos.html">PROYECTS</a>
+    <a class="ghostlink" href="/pases.html">RQ-PRODUCCION</a>
+    <a class="ghostlink" href="/.auth/logout">SALIR</a>
+  </div>
+</div>
+<div class="wrap">
+  <h1>Dashboard de Proyectos</h1>
+  <p class="lead">Portafolio de proyectos con avance consolidado. Haz clic en un proyecto para abrir su cronograma (Gantt).</p>
+  <div class="kpis" id="kpis"></div>
+  <div id="cards"><div class="state"><div class="spinner"></div>Cargando…</div></div>
+</div>
+<script>
+(function(){
+  "use strict";
+  var EST={ "Activo":["#4f46e5","rgba(79,70,229,.14)"],"En pausa":["#b45309","rgba(217,119,6,.16)"],
+    "Completado":["#047857","rgba(4,120,87,.16)"],"Cancelado":["#b91c1c","rgba(220,38,38,.16)"] };
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function estColor(e){ return EST[e]||["#475569","rgba(100,116,139,.14)"]; }
+  function pill(e){ var c=estColor(e); return '<span class="pill" style="color:'+c[0]+';background:'+c[1]+'"><span class="d" style="background:'+c[0]+'"></span>'+esc(e||'—')+'</span>'; }
+  function fmt(v){ if(!v) return ''; var d=new Date(v); return isNaN(d)?'':d.toISOString().slice(0,10); }
+
+  fetch('/api/proyectos?resumen=1').then(function(r){ if(r.status===401){ location.href='/.auth/login/aad'; return null; } return r.json(); }).then(function(d){
+    var cards=document.getElementById('cards');
+    if(!d) return;
+    if(!d.ok){ document.getElementById('kpis').innerHTML=''; cards.innerHTML='<div class="state err-txt">'+esc(d.error||'Error')+(d.debug?(' — '+esc(d.debug.message)):'')+'</div>'; return; }
+    var items=d.items||[];
+    var avg = items.length ? Math.round(items.reduce(function(a,p){return a+(p.Avance||0);},0)/items.length) : 0;
+    var activos=items.filter(function(p){return p.Estado==='Activo';}).length;
+    var tareas=items.reduce(function(a,p){return a+(p.Tareas||0);},0);
+    var hitos=items.reduce(function(a,p){return a+(p.Hitos||0);},0);
+    document.getElementById('kpis').innerHTML=
+      '<div class="kpi"><div class="n">'+items.length+'</div><div class="l">Proyectos</div></div>'+
+      '<div class="kpi"><div class="n" style="color:#4f46e5">'+activos+'</div><div class="l">Activos</div></div>'+
+      '<div class="kpi"><div class="n" style="color:#6d28d9">'+avg+'%</div><div class="l">Avance promedio</div></div>'+
+      '<div class="kpi"><div class="n">'+tareas+'</div><div class="l">Tareas</div></div>'+
+      '<div class="kpi"><div class="n">'+hitos+'</div><div class="l">Hitos</div></div>';
+    if(!items.length){ cards.innerHTML='<div class="state">Aún no hay proyectos. Crea uno desde el cronograma (Gantt).</div>'; return; }
+    cards.innerHTML='<div class="cards">'+items.map(function(p){
+      var av=Math.round(p.Avance||0);
+      var ini=p.FechaInicio||p.TareaMin, fin=p.FechaFin||p.TareaMax;
+      var rango=(ini?fmt(ini):'—')+' → '+(fin?fmt(fin):'—');
+      return '<a class="pcard" href="/gantt.html?proyecto='+p.Id+'">'+
+        '<h3>'+esc(p.Nombre)+'</h3>'+
+        '<div class="sub">'+pill(p.Estado)+'<span>'+esc(p.Responsable||'—')+'</span></div>'+
+        '<div class="prow"><div class="bar" style="flex:1"><i style="width:'+av+'%"></i></div><span class="pct">'+av+'%</span></div>'+
+        '<div class="metrics"><span><b>'+(p.Tareas||0)+'</b> tareas</span><span><b>'+(p.Hitos||0)+'</b> hitos</span><span>'+esc(rango)+'</span></div>'+
+      '</a>';
+    }).join('')+'</div>';
+  }).catch(function(){ document.getElementById('cards').innerHTML='<div class="state err-txt">Error de red.</div>'; });
+})();
+</script>
+</body>
+</html>
