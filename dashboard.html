@@ -85,6 +85,21 @@
   .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:10px 15px;font-size:13.5px;cursor:pointer;font-weight:600;transition:background .12s ease}
   .btn:hover{background:var(--brand-soft)}
   .count{color:var(--muted);font-size:13px;font-weight:600}
+  .vtoggle{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .vtoggle .vbtn{border:none;background:var(--panel);color:var(--muted);font-size:13px;font-weight:600;padding:9px 14px;cursor:pointer}
+  .vtoggle .vbtn.active{background:var(--brand);color:#fff}
+  .board{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+  .bcol{flex:0 0 250px;background:var(--panel);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;max-height:72vh}
+  .bcol-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
+  .bcol-h .d{width:9px;height:9px;border-radius:3px}
+  .bcol-h .cnt{margin-left:auto;color:var(--muted);font-weight:700;font-size:12px}
+  .bcol-b{padding:10px;display:flex;flex-direction:column;gap:9px;overflow-y:auto;min-height:44px;flex:1}
+  .bcol.drop{outline:2px dashed var(--brand);outline-offset:-4px}
+  .bcard{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:var(--bg);cursor:grab;box-shadow:var(--shadow-sm)}
+  .bcard:hover{border-color:var(--brand)}
+  .bcard .t{font-weight:650;font-size:13px}
+  .bcard .m{color:var(--muted);font-size:11.5px;margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .bcard.dragging{opacity:.45}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
   .tablewrap{overflow-x:auto}
@@ -159,9 +174,11 @@
   .pase-form input:focus,.pase-form select:focus,.pase-form textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(124,58,237,.14)}
   .pase-form textarea{min-height:60px;resize:vertical}
   @media (max-width:560px){.pase-form{grid-template-columns:1fr}}
-  .pase-gates{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px;margin-top:4px}
-  .pase-gates label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:var(--ink);cursor:pointer}
-  @media (max-width:560px){.pase-gates{grid-template-columns:1fr}}
+  .gates{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .gate{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 11px}
+  .gate label{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer;flex:1;margin:0}
+  .gate input[type=date]{width:150px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--panel);color:var(--ink)}
+  @media (max-width:560px){.gate{flex-wrap:wrap} .gate input[type=date]{width:100%}}
   @media (max-width:640px){ .wrap{padding:14px} .appbar .inner{padding:10px 14px} .brand-t span{display:none} .dkv{grid-template-columns:1fr} }
 </style>
 </head>
@@ -231,11 +248,12 @@
       <option>Nuevo</option><option>En revisión</option><option>Aprobado</option>
       <option>En provisión</option><option>Completado</option><option>Rechazado</option>
     </select>
+    <div class="vtoggle"><button id="vTabla" class="vbtn active">Tabla</button><button id="vBoard" class="vbtn">Tablero</button></div>
     <div class="grow"></div>
     <span class="count" id="count"></span>
   </div>
 
-  <div class="card">
+  <div class="card" id="tableCard">
     <div class="tablewrap">
       <table id="tbl">
         <thead id="thead"></thead>
@@ -243,6 +261,7 @@
       </table>
     </div>
   </div>
+  <div class="board" id="board" style="display:none"></div>
 </div>
 
 <div class="modal-bg" id="detailModal">
@@ -440,12 +459,12 @@
       '<div><label>Recibe la documentación</label><input type="text" id="paseRecDoc" list="usuariosDL" autocomplete="off"></div>'+
       '<div><label>Recibe la inducción</label><input type="text" id="paseRecInd" list="usuariosDL" autocomplete="off"></div>'+
       '<div class="full"><label>Plan de rollback</label><textarea id="paseRollback" placeholder="Pasos para revertir si el pase falla…"></textarea></div>'+
-      '<div class="full"><label>Entregables para aprobar</label>'+
-        '<div class="pase-gates">'+
-          '<label><input type="checkbox" id="gArq"> Documentación de Arquitectura</label>'+
-          '<label><input type="checkbox" id="gFun"> Documentación Funcional</label>'+
-          '<label><input type="checkbox" id="gSop"> Documentación de Soporte</label>'+
-          '<label><input type="checkbox" id="gInd"> Inducción</label>'+
+      '<div class="full"><label>Entregables para aprobar <span style="font-weight:400;color:var(--muted);font-size:11.5px">(marca y pon la fecha de cada uno)</span></label>'+
+        '<div class="gates">'+
+          '<div class="gate"><label><input type="checkbox" id="gArq"> Documentación de Arquitectura</label><input type="date" id="gArqF" title="Fecha del entregable"></div>'+
+          '<div class="gate"><label><input type="checkbox" id="gFun"> Documentación Funcional</label><input type="date" id="gFunF" title="Fecha del entregable"></div>'+
+          '<div class="gate"><label><input type="checkbox" id="gSop"> Documentación de Soporte</label><input type="date" id="gSopF" title="Fecha del entregable"></div>'+
+          '<div class="gate"><label><input type="checkbox" id="gInd"> Inducción</label><input type="date" id="gIndF" title="Fecha del entregable"></div>'+
         '</div><div class="save-msg" id="gateMsg" style="margin-top:6px"></div></div>'+
       '<div class="full"><button class="btn primary sm" id="paseSave" style="padding:8px 14px">Guardar pase</button> <span class="save-msg" id="paseMsg"></span></div>'+
     '</div></div>';
@@ -466,6 +485,10 @@
       if(g('gFun')) g('gFun').checked=!!p.DocFuncional;
       if(g('gSop')) g('gSop').checked=!!p.DocSoporte;
       if(g('gInd')) g('gInd').checked=!!p.Induccion;
+      if(g('gArqF')) g('gArqF').value=p.DocArquitecturaFecha?fmtDate(p.DocArquitecturaFecha):'';
+      if(g('gFunF')) g('gFunF').value=p.DocFuncionalFecha?fmtDate(p.DocFuncionalFecha):'';
+      if(g('gSopF')) g('gSopF').value=p.DocSoporteFecha?fmtDate(p.DocSoporteFecha):'';
+      if(g('gIndF')) g('gIndF').value=p.InduccionFecha?fmtDate(p.InduccionFecha):'';
       if(g('paseContraparte')) g('paseContraparte').value=p.ContrapartePlanificacion||'';
       if(g('paseRecDoc')) g('paseRecDoc').value=p.ReceptorDocumentacion||'';
       if(g('paseRecInd')) g('paseRecInd').value=p.ReceptorInduccion||'';
@@ -480,7 +503,12 @@
   }
   function bindPase(){
     var b=document.getElementById('paseSave'); if(!b) return;
-    ['gArq','gFun','gSop','gInd'].forEach(function(id){ var e=document.getElementById(id); if(e) e.addEventListener('change', updateGateMsg); });
+    var GMAP={gArq:'gArqF',gFun:'gFunF',gSop:'gSopF',gInd:'gIndF'};
+    Object.keys(GMAP).forEach(function(id){ var e=document.getElementById(id); if(!e) return; e.addEventListener('change', function(){
+      var f=document.getElementById(GMAP[id]);
+      if(e.checked && f && !f.value){ var d=new Date(); f.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+      updateGateMsg();
+    }); });
     b.addEventListener('click', function(){
       var msg=document.getElementById('paseMsg');
       var estado=document.getElementById('paseEstado').value;
@@ -497,6 +525,7 @@
         estado:estado,
         planRollback:g('paseRollback').value.trim(),
         docArquitectura:g('gArq').checked, docFuncional:g('gFun').checked, docSoporte:g('gSop').checked, induccion:g('gInd').checked,
+        docArquitecturaFecha:g('gArqF').value||null, docFuncionalFecha:g('gFunF').value||null, docSoporteFecha:g('gSopF').value||null, induccionFecha:g('gIndF').value||null,
         contrapartePlanificacion:g('paseContraparte').value.trim(), receptorDocumentacion:g('paseRecDoc').value.trim(), receptorInduccion:g('paseRecInd').value.trim() };
       fetch('/api/pases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
         .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,d:d};});})
@@ -534,10 +563,10 @@
       kv('Se planifica con', pv('ContrapartePlanificacion','contrapartePlanificacion'))+
       kv('Recibe documentación', pv('ReceptorDocumentacion','receptorDocumentacion'))+
       kv('Recibe inducción', pv('ReceptorInduccion','receptorInduccion'))+
-      kv('Doc. Arquitectura', pv('DocArquitectura','docArquitectura')?'Sí':'No')+
-      kv('Doc. Funcional', pv('DocFuncional','docFuncional')?'Sí':'No')+
-      kv('Doc. Soporte', pv('DocSoporte','docSoporte')?'Sí':'No')+
-      kv('Inducción', pv('Induccion','induccion')?'Sí':'No')+
+      kv('Doc. Arquitectura', (pv('DocArquitectura','docArquitectura')?'Sí':'No')+(pv('DocArquitecturaFecha','docArquitecturaFecha')?(' — '+fmtDate(pv('DocArquitecturaFecha','docArquitecturaFecha'))):''))+
+      kv('Doc. Funcional', (pv('DocFuncional','docFuncional')?'Sí':'No')+(pv('DocFuncionalFecha','docFuncionalFecha')?(' — '+fmtDate(pv('DocFuncionalFecha','docFuncionalFecha'))):''))+
+      kv('Doc. Soporte', (pv('DocSoporte','docSoporte')?'Sí':'No')+(pv('DocSoporteFecha','docSoporteFecha')?(' — '+fmtDate(pv('DocSoporteFecha','docSoporteFecha'))):''))+
+      kv('Inducción', (pv('Induccion','induccion')?'Sí':'No')+(pv('InduccionFecha','induccionFecha')?(' — '+fmtDate(pv('InduccionFecha','induccionFecha'))):''))+
       kv('Plan de rollback', pv('PlanRollback','planRollback'))+
     '</div>';
   }
@@ -572,6 +601,7 @@
 
   var DATA = { infra:[], erp:[], gen:[] };
   var scope = "all";
+  var view = "tabla";
 
   /* ---- usuarios (Entra) para el selector de Responsable ---- */
   (function(){
@@ -606,7 +636,7 @@
     });
     var box=document.getElementById('kpis'); box.innerHTML=html;
     Array.prototype.forEach.call(box.querySelectorAll('.kpi'), function(k){
-      k.addEventListener('click', function(){ document.getElementById('fEstado').value=k.getAttribute('data-e'); renderKpis(); renderTable(); });
+      k.addEventListener('click', function(){ document.getElementById('fEstado').value=k.getAttribute('data-e'); renderKpis(); renderView(); });
     });
   }
 
@@ -718,7 +748,58 @@
     });
   }
 
-  function renderAll(){ renderKpis(); renderDonut(); renderBars(); renderTable(); }
+  function renderAll(){ renderKpis(); renderDonut(); renderBars(); renderView(); }
+
+  function renderView(){
+    if(view==='tablero'){ document.getElementById('tableCard').style.display='none'; document.getElementById('board').style.display='flex'; renderBoard(); }
+    else { document.getElementById('board').style.display='none'; document.getElementById('tableCard').style.display=''; renderTable(); }
+  }
+  function findItem(tipo,id){ var arr=(tipo==='infra'?DATA.infra:(tipo==='erp'?DATA.erp:DATA.gen)); for(var i=0;i<arr.length;i++){ if(arr[i].Id===id) return arr[i]; } return null; }
+  function tipoChip(it){ var m={infra:['infra','Infra'],erp:['erp','ERP'],gen:['gen','General']}, x=m[it._tipo]||['','']; return '<span class="tipo '+x[0]+'">'+x[1]+'</span>'; }
+  function boardItems(){
+    var q=document.getElementById('q').value.trim().toLowerCase();
+    return scopedItems().filter(function(it){
+      if(q){ var hay=[it.Titulo,it.Aplicacion,it.Proyecto,it.Identificador,it.LiderProyecto,it.Solicitante,it.Area,it.Modulos,it.Ambito].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+      return true;
+    });
+  }
+  function renderBoard(){
+    var items=boardItems(), by={}; ESTADOS.forEach(function(e){by[e]=[];});
+    items.forEach(function(it){ (by[it.Estado]||(by[it.Estado]=[])).push(it); });
+    document.getElementById('count').textContent=items.length+' solicitud(es)';
+    document.getElementById('board').innerHTML=ESTADOS.map(function(e){
+      var c=colorOf(e), list=by[e]||[];
+      var cards=list.map(function(it){
+        var t=it.Titulo||it.Aplicacion||('#'+it.Id), who=it.Responsable||it.LiderProyecto||it.Solicitante||'';
+        return '<div class="bcard" draggable="true" data-id="'+it.Id+'" data-tipo="'+it._tipo+'"><div class="t">'+esc(t)+'</div>'+
+          '<div class="m">'+tipoChip(it)+(who?('<span>'+esc(who)+'</span>'):'')+(it.FechaEntrega?('<span>'+esc(fmtDate(it.FechaEntrega))+'</span>'):'')+'</div></div>';
+      }).join('');
+      return '<div class="bcol" data-estado="'+esc(e)+'"><div class="bcol-h"><span class="d" style="background:'+c[0]+'"></span>'+esc(e)+'<span class="cnt">'+list.length+'</span></div><div class="bcol-b">'+cards+'</div></div>';
+    }).join('');
+    bindBoard();
+  }
+  function bindBoard(){
+    var board=document.getElementById('board');
+    Array.prototype.forEach.call(board.querySelectorAll('.bcard'), function(card){
+      card.addEventListener('click', function(){ var it=findItem(card.getAttribute('data-tipo'), +card.getAttribute('data-id')); if(it) openDetail(it); });
+      card.addEventListener('dragstart', function(e){ e.dataTransfer.setData('text/plain', card.getAttribute('data-tipo')+'|'+card.getAttribute('data-id')); card.classList.add('dragging'); });
+      card.addEventListener('dragend', function(){ card.classList.remove('dragging'); });
+    });
+    Array.prototype.forEach.call(board.querySelectorAll('.bcol'), function(col){
+      col.addEventListener('dragover', function(e){ e.preventDefault(); col.classList.add('drop'); });
+      col.addEventListener('dragleave', function(){ col.classList.remove('drop'); });
+      col.addEventListener('drop', function(e){ e.preventDefault(); col.classList.remove('drop');
+        var d=(e.dataTransfer.getData('text/plain')||'').split('|'), tipo=d[0], id=+d[1], nuevo=col.getAttribute('data-estado');
+        var it=findItem(tipo,id); if(!it || it.Estado===nuevo) return;
+        var prev=it.Estado; it.Estado=nuevo; renderBoard(); renderKpis(); renderDonut(); renderBars();
+        var body={ estado:nuevo, responsable:it.Responsable||'', fechaEntrega:(it.FechaEntrega?String(it.FechaEntrega).slice(0,10):null) };
+        fetch(API[tipo]+'/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+          .then(function(r){return r.json().catch(function(){return{};}).then(function(x){return{ok:r.ok,d:x};});})
+          .then(function(res){ if(!(res.ok&&res.d&&res.d.ok)){ it.Estado=prev; renderBoard(); renderKpis(); renderDonut(); renderBars(); } })
+          .catch(function(){ it.Estado=prev; renderBoard(); renderKpis(); renderDonut(); renderBars(); });
+      });
+    });
+  }
 
   function fetchType(tipo){
     return fetch(API[tipo]).then(function(r){
@@ -752,8 +833,10 @@
     });
   });
   document.getElementById('btnRefresh').addEventListener('click', loadAll);
-  document.getElementById('fEstado').addEventListener('change', function(){ renderKpis(); renderTable(); });
-  var t=null; document.getElementById('q').addEventListener('input', function(){ clearTimeout(t); t=setTimeout(renderTable,300); });
+  document.getElementById('fEstado').addEventListener('change', function(){ renderKpis(); renderView(); });
+  document.getElementById('vTabla').addEventListener('click', function(){ view='tabla'; this.classList.add('active'); document.getElementById('vBoard').classList.remove('active'); renderView(); });
+  document.getElementById('vBoard').addEventListener('click', function(){ view='tablero'; this.classList.add('active'); document.getElementById('vTabla').classList.remove('active'); renderView(); });
+  var t=null; document.getElementById('q').addEventListener('input', function(){ clearTimeout(t); t=setTimeout(renderView,300); });
 
   loadAll();
 
