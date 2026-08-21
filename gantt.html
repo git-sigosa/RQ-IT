@@ -182,7 +182,7 @@
       <textarea id="p_desc" rows="3" placeholder="Descripción / objetivo"></textarea>
       <div class="status" id="projStatus" style="margin-top:10px"></div>
     </div>
-    <div class="m-foot"><button class="btn" data-close="projModal">Cancelar</button><button class="btn primary" id="btnSaveProj">Guardar</button></div>
+    <div class="m-foot"><button class="btn danger" id="btnDeleteProj" style="margin-right:auto;display:none">Eliminar</button><button class="btn" data-close="projModal">Cancelar</button><button class="btn primary" id="btnSaveProj">Guardar</button></div>
   </div>
 </div>
 
@@ -510,9 +510,21 @@
     el('p_id').value=p?p.Id:''; el('p_nombre').value=p?p.Nombre:''; el('p_responsable').value=p?(p.Responsable||''):'';
     el('p_inicio').value=p&&p.FechaInicio?fmt(parseD(p.FechaInicio)):''; el('p_fin').value=p&&p.FechaFin?fmt(parseD(p.FechaFin)):'';
     el('p_estado').value=p?(p.Estado||'Activo'):'Activo'; el('p_desc').value=p?(p.Descripcion||''):'';
+    el('btnDeleteProj').style.display = p?'inline-block':'none';
     el('projStatus').textContent=''; openModal('projModal');
   }
   el('btnNewProj').addEventListener('click', function(){ openProjModal(null); });
+  el('btnDeleteProj').addEventListener('click', function(){
+    var id=el('p_id').value; if(!id) return;
+    if(!confirm('¿Eliminar este proyecto y TODAS sus tareas? Esta acción no se puede deshacer.')) return;
+    el('projStatus').textContent='Eliminando…'; el('projStatus').className='status';
+    fetch(P_API+'/'+id,{method:'DELETE'})
+      .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,d:d};});})
+      .then(function(res){
+        if(res.ok&&res.d&&res.d.ok){ closeModal('projModal'); current=null; el('detail').innerHTML='<div class="panel"><div class="empty">Proyecto eliminado. Selecciona o crea un proyecto.</div></div>'; loadProjects(); }
+        else { el('projStatus').textContent='✗ '+((res.d&&res.d.error)||'Error'); el('projStatus').className='status err'; }
+      }).catch(function(){ el('projStatus').textContent='✗ Sin conexión'; el('projStatus').className='status err'; });
+  });
   el('btnSaveProj').addEventListener('click', function(){
     var id=el('p_id').value, nombre=el('p_nombre').value.trim();
     if(!nombre){ el('projStatus').textContent='El nombre es obligatorio.'; el('projStatus').className='status err'; return; }

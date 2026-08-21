@@ -106,13 +106,30 @@ async function handleUpdate(context, req, respond) {
   }
 }
 
+async function handleDelete(context, req, respond) {
+  const id = req.params && req.params.id ? parseInt(req.params.id, 10) : null;
+  if (!id || isNaN(id)) return respond(400, { ok: false, error: 'Falta el Id del proyecto.' });
+  try {
+    const pool = await getPool();
+    const r = pool.request();
+    r.input('Id', sql.Int, id);
+    // Primero las tareas (FK), luego el proyecto. Las solicitudes vinculadas quedan sin proyecto.
+    await r.query('DELETE FROM dbo.ProyectoTareas WHERE ProyectoId = @Id; DELETE FROM dbo.Proyectos WHERE Id = @Id;');
+    return respond(200, { ok: true, id: id });
+  } catch (err) {
+    context.log.error('proyectos delete: ' + err.message);
+    return respond(500, { ok: false, error: 'No se pudo eliminar el proyecto.', debug: { message: err.message } });
+  }
+}
+
 module.exports = async function (context, req) {
   const respond = function (status, obj) { context.res = { status: status, headers: { 'Content-Type': 'application/json' }, body: obj }; };
   if (!config.server || !config.database || !config.user || !config.password) {
     return respond(500, { ok: false, error: 'El servidor no tiene configurada la conexión a SQL.' });
   }
   const method = (req.method || 'POST').toUpperCase();
-  if (method === 'GET')   { return await handleList(context, req, respond); }
-  if (method === 'PATCH') { return await handleUpdate(context, req, respond); }
+  if (method === 'GET')    { return await handleList(context, req, respond); }
+  if (method === 'PATCH')  { return await handleUpdate(context, req, respond); }
+  if (method === 'DELETE') { return await handleDelete(context, req, respond); }
   return await handleCreate(context, req, respond);
 };
