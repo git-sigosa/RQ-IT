@@ -78,6 +78,10 @@
   .grow2 .meta{color:var(--muted);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .caret{cursor:pointer;color:var(--muted);font-size:10px;width:13px;flex:none;user-select:none;text-align:center}
   .caret:hover{color:var(--brand-2)}
+  .subrow{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font-size:13px}
+  .subrow:hover{background:var(--brand-soft);border-color:var(--brand)}
+  .subrow .sn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .subrow .sm{color:var(--muted);font-size:11.5px;white-space:nowrap;flex:none}
   .exec-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px;margin:14px 0}
   .exec-tile{border:1px solid var(--line);border-radius:11px;padding:11px 12px;text-align:center}
   .exec-tile .n{font-size:22px;font-weight:800}.exec-tile .l{font-size:11px;color:var(--muted);margin-top:3px}
@@ -207,6 +211,10 @@
         <div><label class="f">Tipo</label><select id="t_hito"><option value="0">Tarea</option><option value="1">Hito</option></select></div>
       </div>
       <div><label class="f">Depende de</label><select id="t_dep"><option value="">— Ninguna —</option></select></div>
+      <div id="t_subsWrap" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><label class="f" style="margin:0">Subtareas</label><button type="button" class="btn sm" id="btnNewSub">+ Nueva subtarea</button></div>
+        <div id="t_subs"></div>
+      </div>
       <div class="status" id="taskStatus" style="margin-top:10px"></div>
     </div>
     <div class="m-foot">
@@ -539,20 +547,34 @@
       }).catch(function(){ el('projStatus').textContent='✗ Sin conexión'; el('projStatus').className='status err'; });
   });
 
-  function openTaskModal(t){
-    el('taskModalTitle').textContent = t?'Editar tarea':'Nueva tarea';
+  function openTaskModal(t, parentId){
+    el('taskModalTitle').textContent = t?'Editar tarea':(parentId?'Nueva subtarea':'Nueva tarea');
     el('t_id').value=t?t.Id:''; el('t_nombre').value=t?t.Nombre:'';
     el('t_inicio').value=t&&t.FechaInicio?fmt(parseD(t.FechaInicio)):''; el('t_fin').value=t&&t.FechaFin?fmt(parseD(t.FechaFin)):'';
     el('t_prog').value=t?(t.Progreso||0):0; el('t_resp').value=t?(t.Responsable||''):'';
     el('t_hito').value=t&&t.EsHito?'1':'0';
     // dependencias
     var dep=el('t_dep'); dep.innerHTML='<option value="">— Ninguna —</option>'+tasks.filter(function(x){return !t||x.Id!==t.Id;}).map(function(x){return '<option value="'+x.Id+'"'+((t&&t.DependenciaId===x.Id)?' selected':'')+'>'+esc(x.Nombre)+'</option>';}).join('');
-    // tarea principal (solo principales, sin hitos, distinta de sí misma)
+    // tarea principal (solo principales, sin hitos, distinta de sí misma); preselecciona parentId si es nueva subtarea
     var padres=tasks.filter(function(x){ return (!t||x.Id!==t.Id) && !x.TareaPadreId && !x.EsHito; });
-    el('t_padre').innerHTML='<option value="">— Es principal —</option>'+padres.map(function(x){return '<option value="'+x.Id+'"'+((t&&t.TareaPadreId===x.Id)?' selected':'')+'>'+esc(x.Nombre)+'</option>';}).join('');
+    el('t_padre').innerHTML='<option value="">— Es principal —</option>'+padres.map(function(x){ var sel=(t&&t.TareaPadreId===x.Id)||(!t&&parentId===x.Id); return '<option value="'+x.Id+'"'+(sel?' selected':'')+'>'+esc(x.Nombre)+'</option>';}).join('');
+    if(!t && parentId){ var pp=null; tasks.forEach(function(x){if(x.Id===parentId)pp=x;}); if(pp&&pp.Responsable) el('t_resp').value=pp.Responsable; el('t_hito').value='0'; }
     el('btnDeleteTask').style.display = t?'inline-block':'none';
+    // subtareas: solo al editar una tarea principal (sin padre, no hito)
+    var wrap=el('t_subsWrap'), sub=el('t_subs');
+    if(t && !t.TareaPadreId && !t.EsHito){
+      var kids=tasks.filter(function(x){return x.TareaPadreId===t.Id;});
+      wrap.style.display='block';
+      sub.innerHTML = kids.length ? kids.map(function(c){
+        var s=parseD(c.FechaInicio), e=parseD(c.FechaFin)||s;
+        var rango=s?(fmtShort(s)+(e&&daysBetween(s,e)>0?(' – '+fmtShort(e)):'')):'';
+        return '<div class="subrow" data-id="'+c.Id+'"><span class="sn">'+(c.EsHito?'◆ ':'')+esc(c.Nombre)+'</span><span class="sm">'+esc(rango)+(c.EsHito?'':('  ·  '+(c.Progreso||0)+'%'))+'</span></div>';
+      }).join('') : '<div style="color:var(--muted);font-size:12.5px">Sin subtareas. Usa «+ Nueva subtarea».</div>';
+      Array.prototype.forEach.call(sub.querySelectorAll('.subrow'), function(row){ row.addEventListener('click', function(){ var c=tasks.filter(function(x){return x.Id===+row.getAttribute('data-id');})[0]; if(c) openTaskModal(c); }); });
+    } else { wrap.style.display='none'; sub.innerHTML=''; }
     el('taskStatus').textContent=''; openModal('taskModal');
   }
+  el('btnNewSub').addEventListener('click', function(){ var pid=el('t_id').value; if(pid) openTaskModal(null, +pid); });
   el('t_padre').addEventListener('change', function(){
     var pid=+this.value; if(!pid) return; var p=null; tasks.forEach(function(x){ if(x.Id===pid) p=x; });
     if(p && p.Responsable && !el('t_resp').value.trim()) el('t_resp').value=p.Responsable; // hereda responsable
