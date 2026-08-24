@@ -26,7 +26,7 @@ const config = {
   requestTimeout: 20000
 };
 
-var TIPOS = { infra: 1, erp: 1, gen: 1 };
+var TIPOS = { infra: 1, erp: 1, gen: 1, acceso: 1 };
 let poolPromise = null;
 function getPool() { if (!poolPromise) { poolPromise = sql.connect(config).catch(function (e) { poolPromise = null; throw e; }); } return poolPromise; }
 function str(v, max) { if (v == null) return null; var s = String(v).trim(); if (!s) return null; return max ? s.slice(0, max) : s; }

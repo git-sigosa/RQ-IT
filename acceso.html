@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RQ-IT · Solicitud General</title>
+<title>RQ-IT · Solicitud de Acceso a DATA</title>
 <style>
   :root{
     --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff;
@@ -20,7 +20,7 @@
   *{box-sizing:border-box} html,body{margin:0}
   body{font-family:"Segoe UI",Inter,system-ui,-apple-system,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
   .appbar{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
-  .appbar .inner{max-width:900px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px}
+  .appbar .inner{max-width:900px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .logo{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;flex:none;box-shadow:0 4px 12px rgba(124,58,237,.35)}
   .brand-t{display:flex;flex-direction:column;line-height:1.15}
   .brand-t b{font-size:15px;font-weight:700}.brand-t span{font-size:12px;color:var(--muted)}
@@ -28,7 +28,6 @@
   .ghostlink{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px}
   .ghostlink:hover{background:var(--brand-soft);color:var(--brand-2)}
   .ghostlink.active{background:var(--brand-soft);color:var(--brand-2);font-weight:700}
-  .appbar .inner{flex-wrap:wrap}
   .wrap{max-width:900px;margin:0 auto;padding:22px}
   h1{font-size:22px;margin:0 0 4px;font-weight:750;letter-spacing:-.01em}
   .lead{color:var(--muted);margin:0 0 20px;font-size:13.5px}
@@ -46,13 +45,6 @@
   .invalid{border-color:var(--err)!important}
   .err-msg{display:none;color:var(--err);font-size:12px;margin-top:5px}
   .err-msg.show{display:block}
-
-  .mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:6px}
-  .mod{border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;display:flex;gap:10px;align-items:center;transition:border-color .12s,background .12s}
-  .mod:hover{background:var(--brand-soft)}
-  .mod.on{border-color:var(--brand);background:var(--brand-soft)}
-  .mod b{font-size:13.5px}
-
   .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:11px 18px;font-size:14px;cursor:pointer;font-weight:650}
   .btn:hover{background:var(--brand-soft)}
   .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
@@ -60,30 +52,30 @@
   .actionbar{position:sticky;bottom:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:12px 16px;display:flex;align-items:center;gap:12px;margin-top:6px}
   .status{font-size:13px;color:var(--muted)}
   .status.ok{color:var(--ok)} .status.err{color:var(--err)}
-
   .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
   .modal-bg.show{display:flex}
   .modal{background:var(--panel);border-radius:16px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
-  .m-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .m-head{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--line)}
   .m-head h2{margin:0;font-size:16px}
-  .x{border:none;background:transparent;font-size:22px;cursor:pointer;color:var(--muted);line-height:1}
-  .m-body{padding:20px}
+  .x{border:none;background:transparent;font-size:22px;cursor:pointer;color:var(--muted)}
+  .m-body{padding:18px}
 </style>
 </head>
 <body>
 
 <datalist id="usuariosDL"></datalist>
+<datalist id="gruposDL"></datalist>
 
 <div class="appbar">
   <div class="inner">
     <div class="logo">RQ</div>
-    <div class="brand-t"><b>RQ-IT</b><span>Solicitud General</span></div>
+    <div class="brand-t"><b>RQ-IT</b><span>Solicitud de Acceso a DATA</span></div>
     <div class="grow"></div>
     <a class="ghostlink" href="/dashboard.html">DASHBOARD</a>
     <a class="ghostlink" href="/index.html">RQ-IT</a>
     <a class="ghostlink" href="/erp.html">RQ-ERP</a>
-    <a class="ghostlink active" href="/generales.html">RQ-GEN</a>
-    <a class="ghostlink" href="/acceso.html">RQ-ACCESO</a>
+    <a class="ghostlink" href="/generales.html">RQ-GEN</a>
+    <a class="ghostlink active" href="/acceso.html">RQ-ACCESO</a>
     <a class="ghostlink" href="/proyectos.html">PROYECTOS</a>
     <a class="ghostlink" href="/pases.html">RQ-PRODUCCION</a>
     <a class="ghostlink" href="/.auth/logout">SALIR</a>
@@ -91,10 +83,10 @@
 </div>
 
 <div class="wrap">
-  <h1>Solicitud General</h1>
-  <p class="lead">Para requerimientos que no encajan en Infraestructura o ERP: accesos, permisos en red, sistemas, u otros. Da el mayor contexto posible. El seguimiento (responsable y fecha de entrega) se asigna después desde el dashboard.</p>
+  <h1>Solicitud de Acceso a DATA</h1>
+  <p class="lead">Solicita acceso a un grupo de datos. Si el grupo existe elígelo del desplegable; si no, escríbelo y se creará.</p>
 
-  <form id="genForm" novalidate>
+  <form id="accForm" novalidate>
     <div class="card">
       <h2>Datos de la solicitud</h2>
       <div class="grid">
@@ -104,40 +96,26 @@
           <div class="err-msg">Requerido</div>
         </div>
         <div>
-          <label class="field" for="area">Área / Departamento</label>
-          <input type="text" id="area" placeholder="Ej. Finanzas, Operaciones">
+          <label class="field" for="usuario">Usuario</label>
+          <input type="text" id="usuario" placeholder="Usuario / cuenta que tendrá el acceso">
         </div>
       </div>
-      <label class="field" for="asunto">Asunto <span class="req">*</span></label>
-      <input type="text" id="asunto" data-req placeholder="Resumen corto de la solicitud">
+
+      <label class="field" for="grupo">Nombre del grupo <span class="req">*</span> <span class="hint">— elige uno existente o escribe uno nuevo para crearlo</span></label>
+      <input type="text" id="grupo" data-req list="gruposDL" autocomplete="off" placeholder="Nombre del grupo de datos">
       <div class="err-msg">Requerido</div>
+
+      <label class="field" for="detalle">Detalle de acceso <span class="req">*</span></label>
+      <textarea id="detalle" data-req placeholder="Qué datos/tablas/reportes necesita, tipo de acceso (lectura/escritura), justificación…"></textarea>
+      <div class="err-msg">Requerido</div>
+
       <div style="margin-top:14px">
-        <label class="field" for="prioridad">Prioridad</label>
-        <select id="prioridad"><option>Media</option><option>Alta</option><option>Baja</option></select>
+        <label class="field" for="estado">Estatus</label>
+        <select id="estado">
+          <option>Nuevo</option><option>En revisión</option><option>Aprobado</option>
+          <option>En provisión</option><option>Completado</option><option>Rechazado</option>
+        </select>
       </div>
-      <label class="field" for="proyecto">Proyecto <span class="hint">— elige uno existente o escribe uno nuevo para crearlo</span></label>
-      <input type="text" id="proyecto" list="proyectosDL" autocomplete="off" placeholder="Nombre del proyecto (opcional)">
-      <datalist id="proyectosDL"></datalist>
-    </div>
-
-    <div class="card">
-      <h2>Ámbito <span class="hint">— marca lo que aplique</span></h2>
-      <div class="mods" id="ambitos">
-        <label class="mod"><input type="checkbox" value="Infraestructura"><b>Infraestructura</b></label>
-        <label class="mod"><input type="checkbox" value="Sistemas"><b>Sistemas</b></label>
-        <label class="mod"><input type="checkbox" value="Accesos"><b>Accesos</b></label>
-        <label class="mod"><input type="checkbox" value="Permisos en Red"><b>Permisos en Red</b></label>
-        <label class="mod"><input type="checkbox" value="Otro"><b>Otro</b></label>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Contexto</h2>
-      <label class="field" for="descripcion">Descripción / Contexto <span class="req">*</span></label>
-      <textarea id="descripcion" data-req placeholder="Describe con detalle qué necesitas, para qué y cualquier información relevante…"></textarea>
-      <div class="err-msg">Requerido</div>
-      <label class="field" for="justificacion">Justificación / Impacto <span class="hint">— opcional</span></label>
-      <textarea id="justificacion" placeholder="¿Por qué se necesita? ¿Qué pasa si no se atiende?"></textarea>
     </div>
 
     <div class="actionbar">
@@ -153,7 +131,7 @@
   <div class="modal">
     <div class="m-head"><h2>Solicitud lista</h2><button class="x" id="closeModal">×</button></div>
     <div class="m-body">
-      <p style="margin:0 0 16px;font-size:14px">Revisa y envía tu solicitud. Se guardará en la base de datos <strong>RQ-IT</strong>.</p>
+      <p style="margin:0 0 16px;font-size:14px">Revisa y envía tu solicitud de acceso. Se guardará en la base de datos <strong>RQ-IT</strong>.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button type="button" class="btn" id="btnPdf">Descargar PDF</button>
         <button type="button" class="btn primary" id="btnEnviar">Enviar Solicitud</button>
@@ -166,42 +144,38 @@
 <script>
 (function(){
   "use strict";
-  var API = "/api/solicitudes-generales";
-  var lastModel = null;
+  var API="/api/solicitudes-acceso";
+  var lastModel=null;
 
   function val(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-  function setStatus(msg, cls){ var s=document.getElementById('statusBar'); s.textContent=msg; s.className='status'+(cls?(' '+cls):''); }
+  function setStatus(msg,cls){ var s=document.getElementById('statusBar'); s.textContent=msg; s.className='status'+(cls?(' '+cls):''); }
 
-  /* usuarios del directorio (Entra) */
-  (function(){
-    var dl=document.getElementById('usuariosDL'); if(!dl) return;
+  /* usuarios del directorio (Entra) para Solicitante */
+  (function(){ var dl=document.getElementById('usuariosDL'); if(!dl) return;
     fetch('/api/usuarios').then(function(r){return r.ok?r.json():null;}).then(function(d){
       if(!d||!d.ok||!d.items) return;
       dl.innerHTML=d.items.map(function(u){ var v=String(u.name||'').replace(/"/g,'&quot;'); var lbl=String(u.email||'').replace(/"/g,'&quot;'); return '<option value="'+v+'"'+(lbl?(' label="'+lbl+'"'):'')+'></option>'; }).join('');
     }).catch(function(){});
   })();
 
-  /* proyectos del portal (elegir o crear) */
-  var PROY_MAP={};
-  (function(){
-    fetch('/api/proyectos').then(function(r){return r.ok?r.json():null;}).then(function(d){
+  /* grupos (elegir o crear) */
+  var GRUPO_MAP={};
+  function loadGrupos(){
+    fetch('/api/grupos-acceso').then(function(r){return r.ok?r.json():null;}).then(function(d){
       if(!d||!d.ok||!d.items) return;
-      var dl=document.getElementById('proyectosDL'); PROY_MAP={};
-      d.items.forEach(function(p){ PROY_MAP[String(p.Nombre).toLowerCase()]=p.Id; });
-      if(dl) dl.innerHTML=d.items.map(function(p){return '<option value="'+String(p.Nombre).replace(/"/g,'&quot;')+'"></option>';}).join('');
+      GRUPO_MAP={}; var dl=document.getElementById('gruposDL');
+      d.items.forEach(function(g){ GRUPO_MAP[String(g.Nombre).toLowerCase()]=g.Id; });
+      if(dl) dl.innerHTML=d.items.map(function(g){return '<option value="'+String(g.Nombre).replace(/"/g,'&quot;')+'"></option>';}).join('');
     }).catch(function(){});
-  })();
-  function resolveProyectoId(name){
-    name=(name||'').trim(); if(!name) return Promise.resolve(null);
-    var f=PROY_MAP[name.toLowerCase()]; if(f) return Promise.resolve(f);
-    return fetch('/api/proyectos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:name})}).then(function(r){return r.json();}).then(function(d){ if(d&&d.ok){ PROY_MAP[name.toLowerCase()]=d.id; return d.id; } return null; }).catch(function(){return null;});
   }
-
-  Array.prototype.forEach.call(document.querySelectorAll('.mod input'), function(cb){
-    cb.addEventListener('change', function(){ cb.closest('.mod').classList.toggle('on', cb.checked); });
-  });
-  function collectAmbito(){ return Array.prototype.filter.call(document.querySelectorAll('.mod input'), function(c){return c.checked;}).map(function(c){return c.value;}); }
+  loadGrupos();
+  function resolveGrupoId(name){
+    name=(name||'').trim(); if(!name) return Promise.resolve(null);
+    var f=GRUPO_MAP[name.toLowerCase()]; if(f) return Promise.resolve(f);
+    return fetch('/api/grupos-acceso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:name})})
+      .then(function(r){return r.json();}).then(function(d){ if(d&&d.ok){ GRUPO_MAP[name.toLowerCase()]=d.id; return d.id; } return null; }).catch(function(){return null;});
+  }
 
   function validate(){
     var ok=true, first=null;
@@ -219,27 +193,19 @@
   });
 
   function buildModel(){
-    return {
-      solicitante: val('solicitante'), area: val('area'), asunto: val('asunto'),
-      ambito: collectAmbito(), descripcion: val('descripcion'), justificacion: val('justificacion'),
-      prioridad: val('prioridad'), estado: 'Nuevo'
-    };
+    return { solicitante:val('solicitante'), grupo:val('grupo'), usuario:val('usuario'), detalle_acceso:val('detalle'), estado:val('estado')||'Nuevo' };
   }
 
   function buildPrintHTML(m){
     function fld(l,v){ return '<tr><th>'+esc(l)+'</th><td>'+esc(v)+'</td></tr>'; }
-    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Solicitud_General</title><style>'+
+    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Solicitud_Acceso</title><style>'+
       'body{font-family:Segoe UI,Arial,sans-serif;color:#1e293b;margin:32px;font-size:12.5px}'+
-      'h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:22px 0 8px;border-bottom:2px solid #6d28d9;padding-bottom:4px;color:#6d28d9}'+
+      'h1{font-size:20px;margin:0 0 8px}h2{font-size:14px;margin:20px 0 8px;border-bottom:2px solid #6d28d9;padding-bottom:4px;color:#6d28d9}'+
       'table{border-collapse:collapse;width:100%}th,td{border:1px solid #cbd5e1;padding:6px 9px;text-align:left;vertical-align:top}'+
       'th{background:#f1f5f9;width:200px;font-weight:600}@media print{body{margin:12mm}}</style></head><body>'+
-      '<h1>Solicitud General</h1>'+
-      '<h2>Datos</h2><table>'+
-        fld('Solicitante', m.solicitante)+fld('Área', m.area)+fld('Asunto', m.asunto)+fld('Prioridad', m.prioridad)+
-        fld('Ámbito', (m.ambito||[]).join(', '))+
-      '</table>'+
-      '<h2>Contexto</h2><table>'+
-        fld('Descripción', m.descripcion)+(m.justificacion?fld('Justificación / Impacto', m.justificacion):'')+
+      '<h1>Solicitud de Acceso a DATA</h1><h2>Datos</h2><table>'+
+        fld('Solicitante', m.solicitante)+fld('Nombre del grupo', m.grupo)+fld('Usuario', m.usuario)+fld('Estatus', m.estado)+
+        fld('Detalle de acceso', m.detalle_acceso)+
       '</table></body></html>';
   }
   function downloadPdf(m){
@@ -253,7 +219,7 @@
 
   document.getElementById('btnReview').addEventListener('click', function(){
     if(!validate()){ setStatus('Faltan campos obligatorios.', 'err'); return; }
-    lastModel = buildModel();
+    lastModel=buildModel();
     var ms=document.getElementById('modalStatus'); ms.textContent=''; ms.className='status';
     document.getElementById('modal').classList.add('show');
     setStatus('Solicitud lista. Revísala y pulsa Enviar.', 'ok');
@@ -264,10 +230,12 @@
     function onStatus(msg,cls){ st.textContent=msg; st.className='status'+(cls?(' '+cls):''); }
     if(!lastModel){ onStatus('Revisa la solicitud primero.', 'err'); return; }
     onStatus('Guardando…','');
-    resolveProyectoId(val('proyecto')).then(function(pid){ lastModel.proyecto_id=pid; return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({model:lastModel})}); })
+    resolveGrupoId(lastModel.grupo).then(function(gid){ lastModel.grupo_id=gid;
+      return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:lastModel})});
+    })
       .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok,d:d}; }); })
       .then(function(res){
-        if(res.ok && res.d && res.d.ok){ onStatus('✓ Solicitud enviada (Id '+(res.d.id!=null?res.d.id:'—')+').', 'ok'); }
+        if(res.ok && res.d && res.d.ok){ onStatus('✓ Solicitud enviada (Id '+(res.d.id!=null?res.d.id:'—')+').', 'ok'); loadGrupos(); }
         else { onStatus('✗ '+((res.d&&res.d.error)||'Error al enviar'), 'err'); }
       })
       .catch(function(){ onStatus('✗ No se pudo conectar con la API.', 'err'); });
@@ -276,9 +244,7 @@
   document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
   document.getElementById('btnReset').addEventListener('click', function(){
     if(!confirm('¿Limpiar el formulario?')) return;
-    document.getElementById('genForm').reset();
-    Array.prototype.forEach.call(document.querySelectorAll('.mod'), function(m){ m.classList.remove('on'); });
-    setStatus('Formulario limpio.');
+    document.getElementById('accForm').reset(); setStatus('Formulario limpio.');
   });
 })();
 </script>

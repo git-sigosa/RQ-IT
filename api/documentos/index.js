@@ -26,7 +26,7 @@ const config = {
 };
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
-var TIPOS = { infra: 1, erp: 1, gen: 1 };
+var TIPOS = { infra: 1, erp: 1, gen: 1, acceso: 1 };
 
 let poolPromise = null;
 function getPool() { if (!poolPromise) { poolPromise = sql.connect(config).catch(function (e) { poolPromise = null; throw e; }); } return poolPromise; }

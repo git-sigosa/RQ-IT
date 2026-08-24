@@ -29,7 +29,7 @@ function getPool() { if (!poolPromise) { poolPromise = sql.connect(config).catch
 function str(v, max) { if (v == null) return null; var s = String(v).trim(); if (!s) return null; return max ? s.slice(0, max) : s; }
 function toInt(v) { if (v == null || v === '') return null; var n = parseInt(v, 10); return isNaN(n) ? null : n; }
 function toDate(v) { var s = str(v); if (!s) return null; var d = new Date(s); return isNaN(d.getTime()) ? null : d; }
-var TIPOS = { infra: 1, erp: 1, gen: 1 };
+var TIPOS = { infra: 1, erp: 1, gen: 1, acceso: 1 };
 
 async function handleList(context, req, respond) {
   const tipo = str(req.query ? req.query.tipo : null, 10);

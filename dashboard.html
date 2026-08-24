@@ -6,7 +6,7 @@
 <title>RQ-IT · Dashboard de Solicitudes</title>
 <style>
   :root{
-    --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff; --erp:#0d9488; --erp-soft:#ccfbf1; --gen:#d97706; --gen-soft:#fef3c7;
+    --brand:#7c3aed; --brand-2:#6d28d9; --brand-soft:#f5f3ff; --erp:#0d9488; --erp-soft:#ccfbf1; --gen:#d97706; --gen-soft:#fef3c7; --acceso:#2563eb; --acceso-soft:#dbeafe;
     --bg:#f6f7fb; --panel:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e6e8ef;
     --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
     --shadow-sm:0 1px 2px rgba(16,24,40,.06);
@@ -14,7 +14,7 @@
     --grad:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);
   }
   @media (prefers-color-scheme: dark){
-    :root{--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--erp-soft:#0e2b2a;--gen-soft:#3a2e12;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
+    :root{--bg:#0b1020;--panel:#131a2c;--brand-soft:#1e1b3a;--erp-soft:#0e2b2a;--gen-soft:#3a2e12;--acceso-soft:#132a4d;--ink:#e8ecf6;--muted:#94a3b8;--line:#243049;
       --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-sm:0 1px 2px rgba(0,0,0,.35)}
   }
   *{box-sizing:border-box} html,body{margin:0}
@@ -120,6 +120,7 @@
   .tipo.infra{background:var(--brand-soft);color:var(--brand-2)}
   .tipo.erp{background:var(--erp-soft);color:var(--erp)}
   .tipo.gen{background:var(--gen-soft);color:var(--gen)}
+  .tipo.acceso{background:var(--acceso-soft);color:var(--acceso)}
   .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700}
   .pill .d{width:7px;height:7px;border-radius:50%}
   .crit{display:inline-block;padding:3px 9px;border-radius:8px;font-size:12px;font-weight:700}
@@ -202,6 +203,7 @@
     <a class="ghostlink" href="/index.html">RQ-IT</a>
     <a class="ghostlink" href="/erp.html">RQ-ERP</a>
     <a class="ghostlink" href="/generales.html">RQ-GEN</a>
+    <a class="ghostlink" href="/acceso.html">RQ-ACCESO</a>
     <a class="ghostlink" href="/proyectos.html">PROYECTOS</a>
     <a class="ghostlink" href="/pases.html">RQ-PRODUCCION</a>
     <a class="ghostlink" href="/.auth/logout">SALIR</a>
@@ -222,6 +224,7 @@
     <button data-scope="infra">Infraestructura <span class="badge" id="cnt-infra">·</span></button>
     <button data-scope="erp">Sistemas / ERP <span class="badge" id="cnt-erp">·</span></button>
     <button data-scope="gen">Generales <span class="badge" id="cnt-gen">·</span></button>
+    <button data-scope="acceso">Acceso a DATA <span class="badge" id="cnt-acceso">·</span></button>
   </div>
 
   <div class="kpis" id="kpis"></div>
@@ -240,6 +243,7 @@
         <span class="li"><span class="sw" style="background:var(--brand)"></span>Infraestructura</span>
         <span class="li"><span class="sw" style="background:var(--erp)"></span>Sistemas / ERP</span>
         <span class="li"><span class="sw" style="background:var(--gen)"></span>Generales</span>
+        <span class="li"><span class="sw" style="background:var(--acceso)"></span>Acceso a DATA</span>
       </div>
     </div>
   </div>
@@ -288,7 +292,7 @@
     "Completado":["#047857","rgba(4,120,87,.16)"],"Rechazado":["#b91c1c","rgba(220,38,38,.16)"]
   };
   var CRIT = {"Alta":["#b91c1c","rgba(220,38,38,.14)"],"Media":["#b45309","rgba(217,119,6,.16)"],"Baja":["#15803d","rgba(22,163,74,.14)"]};
-  var API = { infra:"/api/solicitudes", erp:"/api/solicitudes-erp", gen:"/api/solicitudes-generales" };
+  var API = { infra:"/api/solicitudes", erp:"/api/solicitudes-erp", gen:"/api/solicitudes-generales", acceso:"/api/solicitudes-acceso" };
 
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function fmtDate(v){ if(!v) return ''; var d=new Date(v); return isNaN(d)?'' : d.toISOString().slice(0,10); }
@@ -613,7 +617,7 @@
   document.getElementById('detailClose').addEventListener('click', function(){ document.getElementById('detailModal').classList.remove('show'); });
   document.getElementById('detailModal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
 
-  var DATA = { infra:[], erp:[], gen:[] };
+  var DATA = { infra:[], erp:[], gen:[], acceso:[] };
   var scope = "all";
   var view = "tabla";
 
@@ -637,7 +641,8 @@
     if(scope==='infra') return DATA.infra;
     if(scope==='erp') return DATA.erp;
     if(scope==='gen') return DATA.gen;
-    return DATA.infra.concat(DATA.erp).concat(DATA.gen);
+    if(scope==='acceso') return DATA.acceso;
+    return DATA.infra.concat(DATA.erp).concat(DATA.gen).concat(DATA.acceso);
   }
   function countsBy(items){ var c={}; ESTADOS.forEach(function(e){c[e]=0;}); items.forEach(function(it){ if(c[it.Estado]==null)c[it.Estado]=0; c[it.Estado]++; }); return c; }
 
@@ -672,19 +677,20 @@
       var c=colorOf(e);
       return '<div class="li"><span class="sw" style="background:'+c[0]+'"></span><span class="ln">'+esc(e)+'</span><span class="lv">'+(counts[e]||0)+'</span></div>';
     }).join('');
-    document.getElementById('donutSub').textContent = scope==='all'?'Consolidado (todos los tipos)':(scope==='infra'?'Infraestructura':(scope==='erp'?'Sistemas / ERP':'Generales'));
+    document.getElementById('donutSub').textContent = scope==='all'?'Consolidado (todos los tipos)':(scope==='infra'?'Infraestructura':(scope==='erp'?'Sistemas / ERP':(scope==='gen'?'Generales':'Acceso a DATA')));
   }
 
   /* ---------- Barras por estado y tipo ---------- */
   function renderBars(){
-    var ci=countsBy(DATA.infra), ce=countsBy(DATA.erp), cg=countsBy(DATA.gen), max=1;
-    ESTADOS.forEach(function(e){ max=Math.max(max, ci[e]||0, ce[e]||0, cg[e]||0); });
+    var ci=countsBy(DATA.infra), ce=countsBy(DATA.erp), cg=countsBy(DATA.gen), ca=countsBy(DATA.acceso), max=1;
+    ESTADOS.forEach(function(e){ max=Math.max(max, ci[e]||0, ce[e]||0, cg[e]||0, ca[e]||0); });
     document.getElementById('bars').innerHTML = ESTADOS.map(function(e){
-      var i=ci[e]||0, r=ce[e]||0, g=cg[e]||0;
+      var i=ci[e]||0, r=ce[e]||0, g=cg[e]||0, a=ca[e]||0;
       return '<div class="barrow"><div class="barlbl">'+esc(e)+'</div><div class="bars">'+
         '<div class="bar"><div class="track"><div class="fill" style="width:'+(i/max*100)+'%;background:var(--brand)"></div></div><span class="bv">'+i+'</span></div>'+
         '<div class="bar"><div class="track"><div class="fill" style="width:'+(r/max*100)+'%;background:var(--erp)"></div></div><span class="bv">'+r+'</span></div>'+
         '<div class="bar"><div class="track"><div class="fill" style="width:'+(g/max*100)+'%;background:var(--gen)"></div></div><span class="bv">'+g+'</span></div>'+
+        '<div class="bar"><div class="track"><div class="fill" style="width:'+(a/max*100)+'%;background:var(--acceso)"></div></div><span class="bv">'+a+'</span></div>'+
         '</div></div>';
     }).join('');
   }
@@ -701,6 +707,7 @@
     if(scope==='infra') return ["Id","Solicitud","Ambiente","Criticidad","Recursos","Estado","Responsable","Fecha entrega",""];
     if(scope==='erp')   return ["Id","Solicitud","Módulos","Fabric","Prioridad","Estado","Responsable","Fecha entrega",""];
     if(scope==='gen')   return ["Id","Solicitud","Ámbito","Prioridad","Estado","Responsable","Fecha entrega",""];
+    if(scope==='acceso')return ["Id","Grupo","Solicitante","Usuario","Estado","Responsable","Fecha entrega",""];
     return ["Id","Tipo","Solicitud","Estado","Responsable","Fecha entrega",""];
   }
   function midCells(it){
@@ -715,6 +722,11 @@
       var sol2='<td><div class="title">'+esc(tt)+'</div>'+(it.Solicitante?('<div class="sub">'+esc(it.Solicitante)+(it.Area?(' · '+esc(it.Area)):'')+'</div>'):'')+'</td>';
       if(scope==='erp') return sol2+'<td>'+chips(it.Modulos)+'</td><td>'+(it.TransformarFabric==='Sí'?'<span class="crit" style="color:#0369a1;background:rgba(3,105,161,.14)">Sí</span>':'—')+'</td><td>'+crit(it.Prioridad)+'</td>';
       return '<td><span class="tipo erp">ERP</span></td>'+sol2;
+    } else if(it._tipo==='acceso'){
+      var ta=it.Grupo||it.Titulo||('#'+it.Id);
+      var solA='<td><div class="title">'+esc(ta)+'</div></td>';
+      if(scope==='acceso') return solA+'<td>'+esc(it.Solicitante||'—')+'</td><td class="mono">'+esc(it.Usuario||'—')+'</td>';
+      return '<td><span class="tipo acceso">Acceso</span></td><td><div class="title">'+esc(ta)+'</div>'+(it.Solicitante?('<div class="sub">'+esc(it.Solicitante)+'</div>'):'')+'</td>';
     } else {
       var tg=it.Titulo||('#'+it.Id);
       var sol3='<td><div class="title">'+esc(tg)+'</div>'+(it.Solicitante?('<div class="sub">'+esc(it.Solicitante)+(it.Area?(' · '+esc(it.Area)):'')+'</div>'):'')+'</td>';
@@ -726,7 +738,7 @@
     var q=document.getElementById('q').value.trim().toLowerCase(), estado=document.getElementById('fEstado').value;
     var items=scopedItems().filter(function(it){
       if(estado && it.Estado!==estado) return false;
-      if(q){ var hay=[it.Titulo,it.Aplicacion,it.Proyecto,it.Identificador,it.LiderProyecto,it.Solicitante,it.Area,it.Modulos,it.Ambito].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+      if(q){ var hay=[it.Titulo,it.Aplicacion,it.Proyecto,it.Identificador,it.LiderProyecto,it.Solicitante,it.Area,it.Modulos,it.Ambito,it.Grupo,it.Usuario].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
       return true;
     });
     var cols=columns();
@@ -768,12 +780,12 @@
     if(view==='tablero'){ document.getElementById('tableCard').style.display='none'; document.getElementById('board').style.display='flex'; renderBoard(); }
     else { document.getElementById('board').style.display='none'; document.getElementById('tableCard').style.display=''; renderTable(); }
   }
-  function findItem(tipo,id){ var arr=(tipo==='infra'?DATA.infra:(tipo==='erp'?DATA.erp:DATA.gen)); for(var i=0;i<arr.length;i++){ if(arr[i].Id===id) return arr[i]; } return null; }
-  function tipoChip(it){ var m={infra:['infra','Infra'],erp:['erp','ERP'],gen:['gen','General']}, x=m[it._tipo]||['','']; return '<span class="tipo '+x[0]+'">'+x[1]+'</span>'; }
+  function findItem(tipo,id){ var arr=DATA[tipo]||[]; for(var i=0;i<arr.length;i++){ if(arr[i].Id===id) return arr[i]; } return null; }
+  function tipoChip(it){ var m={infra:['infra','Infra'],erp:['erp','ERP'],gen:['gen','General'],acceso:['acceso','Acceso']}, x=m[it._tipo]||['','']; return '<span class="tipo '+x[0]+'">'+x[1]+'</span>'; }
   function boardItems(){
     var q=document.getElementById('q').value.trim().toLowerCase();
     return scopedItems().filter(function(it){
-      if(q){ var hay=[it.Titulo,it.Aplicacion,it.Proyecto,it.Identificador,it.LiderProyecto,it.Solicitante,it.Area,it.Modulos,it.Ambito].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+      if(q){ var hay=[it.Titulo,it.Aplicacion,it.Proyecto,it.Identificador,it.LiderProyecto,it.Solicitante,it.Area,it.Modulos,it.Ambito,it.Grupo,it.Usuario].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
       return true;
     });
   }
@@ -827,12 +839,13 @@
 
   function loadAll(){
     document.getElementById('tbody').innerHTML='<tr><td><div class="state"><div class="spinner"></div>Cargando…</div></td></tr>';
-    Promise.all([fetchType('infra'), fetchType('erp'), fetchType('gen')]).then(function(res){
-      DATA.infra=res[0].items; DATA.erp=res[1].items; DATA.gen=res[2].items;
-      document.getElementById('cnt-all').textContent=DATA.infra.length+DATA.erp.length+DATA.gen.length;
+    Promise.all([fetchType('infra'), fetchType('erp'), fetchType('gen'), fetchType('acceso')]).then(function(res){
+      DATA.infra=res[0].items; DATA.erp=res[1].items; DATA.gen=res[2].items; DATA.acceso=res[3].items;
+      document.getElementById('cnt-all').textContent=DATA.infra.length+DATA.erp.length+DATA.gen.length+DATA.acceso.length;
       document.getElementById('cnt-infra').textContent=DATA.infra.length;
       document.getElementById('cnt-erp').textContent=DATA.erp.length;
       document.getElementById('cnt-gen').textContent=DATA.gen.length;
+      document.getElementById('cnt-acceso').textContent=DATA.acceso.length;
       renderAll();
     });
   }
