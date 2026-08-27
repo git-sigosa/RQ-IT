@@ -28,6 +28,11 @@
   .ghostlink{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px}
   .ghostlink:hover{background:var(--brand-soft);color:var(--brand-2)}
   .ghostlink.active{background:var(--brand-soft);color:var(--brand-2);font-weight:700}
+  .userchip{display:inline-flex;align-items:center;gap:7px;background:var(--brand-soft);color:var(--brand-2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;max-width:240px}
+  .userchip .dot{width:8px;height:8px;border-radius:50%;background:#16a34a;flex:none}
+  .userchip .un{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btn-salir{color:var(--muted);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:10px;border:1px solid var(--line)}
+  .btn-salir:hover{background:var(--brand-soft);color:var(--brand-2)}
   .wrap{max-width:900px;margin:0 auto;padding:22px}
   h1{font-size:22px;margin:0 0 4px;font-weight:750;letter-spacing:-.01em}
   .lead{color:var(--muted);margin:0 0 20px;font-size:13.5px}
@@ -94,6 +99,7 @@
     <div class="logo">RQ</div>
     <div class="brand-t"><b>RQ-IT</b><span>Solicitud de Acceso a DATA</span></div>
     <div class="grow"></div>
+    <span class="userchip" id="userchip" style="display:none"><span class="dot"></span><span class="un" id="userName">…</span></span>
     <a class="ghostlink" href="/dashboard.html">DASHBOARD</a>
     <a class="ghostlink" href="/index.html">RQ-IT</a>
     <a class="ghostlink" href="/erp.html">RQ-ERP</a>
@@ -101,7 +107,8 @@
     <a class="ghostlink active" href="/acceso.html">RQ-ACCESO</a>
     <a class="ghostlink" href="/proyectos.html">PROYECTOS</a>
     <a class="ghostlink" href="/pases.html">RQ-PRODUCCION</a>
-    <a class="ghostlink" href="/.auth/logout">SALIR</a>
+    <a class="btn-salir" id="btnSalir" href="/.auth/logout">Salir</a>
+    <a class="ghostlink" id="btnLogin" href="/.auth/login/aad" style="display:none">Iniciar sesión</a>
   </div>
 </div>
 
@@ -185,13 +192,20 @@
   var API="/api/solicitudes-acceso";
   var lastModel=null;
 
-  /* Si el usuario es "solo accesos", oculta los enlaces a otros módulos */
+  /* Sesión: muestra quién está conectado y ajusta el menú */
   fetch('/.auth/me').then(function(r){return r.json();}).then(function(d){
     var p=d&&d.clientPrincipal, roles=(p&&p.userRoles)||[];
+    var chip=document.getElementById('userchip'), salir=document.getElementById('btnSalir'), login=document.getElementById('btnLogin');
+    if(p){
+      document.getElementById('userName').textContent=p.userDetails||'usuario';
+      chip.style.display=''; salir.style.display=''; login.style.display='none';
+    } else {
+      chip.style.display='none'; salir.style.display='none'; login.style.display='';
+    }
     if(roles.indexOf('acceso')!==-1 && roles.indexOf('interno')===-1){
       Array.prototype.forEach.call(document.querySelectorAll('.appbar .ghostlink'), function(a){
         var href=a.getAttribute('href');
-        if(href!=='/acceso.html' && href!=='/.auth/logout') a.style.display='none';
+        if(href!=='/acceso.html' && href!=='/.auth/login/aad') a.style.display='none';
       });
     }
   }).catch(function(){});
