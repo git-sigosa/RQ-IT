@@ -13,6 +13,7 @@
   },
   "routes": [
     { "route": "/.auth/*", "allowedRoles": ["anonymous", "authenticated", "acceso", "interno"] },
+    { "route": "/accesos", "rewrite": "/acceso.html", "allowedRoles": ["acceso", "interno"] },
     { "route": "/acceso.html", "allowedRoles": ["acceso", "interno"] },
     { "route": "/api/solicitudes-acceso/*", "allowedRoles": ["acceso", "interno"] },
     { "route": "/api/solicitudes-acceso", "allowedRoles": ["acceso", "interno"] },
