@@ -119,8 +119,8 @@
           <div class="err-msg">Requerido</div>
         </div>
         <div>
-          <label class="field" for="usuario">Usuario</label>
-          <input type="text" id="usuario" placeholder="Usuario / cuenta que tendrá el acceso">
+          <label class="field" for="usuario">Usuario <span class="hint">— del directorio @sigosa</span></label>
+          <input type="text" id="usuario" list="usuariosDL" autocomplete="off" placeholder="Escribe para buscar en el directorio…">
         </div>
       </div>
 
@@ -184,6 +184,17 @@
   "use strict";
   var API="/api/solicitudes-acceso";
   var lastModel=null;
+
+  /* Si el usuario es "solo accesos", oculta los enlaces a otros módulos */
+  fetch('/.auth/me').then(function(r){return r.json();}).then(function(d){
+    var p=d&&d.clientPrincipal, roles=(p&&p.userRoles)||[];
+    if(roles.indexOf('acceso')!==-1 && roles.indexOf('interno')===-1){
+      Array.prototype.forEach.call(document.querySelectorAll('.appbar .ghostlink'), function(a){
+        var href=a.getAttribute('href');
+        if(href!=='/acceso.html' && href!=='/.auth/logout') a.style.display='none';
+      });
+    }
+  }).catch(function(){});
 
   function val(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
