@@ -59,6 +59,29 @@
   .m-head h2{margin:0;font-size:16px}
   .x{border:none;background:transparent;font-size:22px;cursor:pointer;color:var(--muted)}
   .m-body{padding:18px}
+  /* multi-select de objetos */
+  .objbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:2px 0 12px}
+  .objsearch{flex:1;min-width:200px}
+  .mods{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .modchip{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:5px 11px;font-size:12px;cursor:pointer;font-weight:600}
+  .modchip:hover{background:var(--brand-soft);color:var(--brand-2)}
+  .modchip.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .modchip .c{opacity:.7;margin-left:5px;font-weight:700}
+  .objlist{border:1px solid var(--line);border-radius:12px;max-height:340px;overflow:auto;background:var(--panel)}
+  .objgroup+.objgroup{border-top:1px solid var(--line)}
+  .objgrouphd{display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--brand-soft);position:sticky;top:0;font-size:12.5px;font-weight:700;cursor:pointer;z-index:1}
+  .objgrouphd .gcount{margin-left:auto;color:var(--muted);font-weight:600;font-size:11.5px}
+  .objrow{display:flex;align-items:center;gap:9px;padding:7px 12px 7px 26px;font-size:13px;cursor:pointer;border-top:1px solid var(--line)}
+  .objrow:hover{background:var(--brand-soft)}
+  .objrow input,.objgrouphd input{width:16px;height:16px;accent-color:var(--brand);cursor:pointer;flex:none}
+  .objrow .tn{flex:1}
+  .svc{font-size:10.5px;font-weight:800;letter-spacing:.02em;border-radius:6px;padding:2px 7px}
+  .selbar{margin-top:12px}
+  .selhd{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:7px}
+  .selchips{display:flex;gap:6px;flex-wrap:wrap}
+  .selchip{display:inline-flex;align-items:center;gap:6px;background:var(--brand-soft);color:var(--brand-2);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 10px;font-size:12px;font-weight:600}
+  .selchip button{border:none;background:transparent;color:var(--brand-2);cursor:pointer;font-size:15px;line-height:1;padding:0 2px}
+  .selempty{color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
@@ -105,9 +128,8 @@
       <input type="text" id="grupo" data-req list="gruposDL" autocomplete="off" placeholder="Nombre del grupo de datos">
       <div class="err-msg">Requerido</div>
 
-      <label class="field" for="detalle">Detalle de acceso <span class="req">*</span></label>
-      <textarea id="detalle" data-req placeholder="Qué datos/tablas/reportes necesita, tipo de acceso (lectura/escritura), justificación…"></textarea>
-      <div class="err-msg">Requerido</div>
+      <label class="field" for="detalle">Detalle / justificación <span class="hint">— opcional (tipo de acceso: lectura/escritura, motivo)</span></label>
+      <textarea id="detalle" placeholder="Justificación, tipo de acceso (lectura/escritura), notas…"></textarea>
 
       <div style="margin-top:14px">
         <label class="field" for="estado">Estatus</label>
@@ -115,6 +137,22 @@
           <option>Nuevo</option><option>En revisión</option><option>Aprobado</option>
           <option>En provisión</option><option>Completado</option><option>Rechazado</option>
         </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Objetos de datos solicitados <span class="req">*</span></h2>
+      <p class="hint" style="margin:2px 0 12px">Selecciona una o varias tablas/objetos del modelo. Cada objeto queda registrado con su módulo para auditoría.</p>
+      <div class="objbar">
+        <input type="text" id="objSearch" class="objsearch" placeholder="Buscar objeto… (ej. Fact, Producto, Ventas)">
+        <button type="button" class="btn sm" id="objClear" style="padding:8px 12px;font-size:12.5px">Quitar selección</button>
+      </div>
+      <div class="mods" id="objMods"></div>
+      <div class="objlist" id="objList"></div>
+      <div class="err-msg" id="objErr">Selecciona al menos un objeto.</div>
+      <div class="selbar">
+        <div class="selhd"><span id="objCount">0</span> objeto(s) seleccionado(s)</div>
+        <div class="selchips" id="objSel"><span class="selempty">Aún no has seleccionado objetos.</span></div>
       </div>
     </div>
 
@@ -177,6 +215,94 @@
       .then(function(r){return r.json();}).then(function(d){ if(d&&d.ok){ GRUPO_MAP[name.toLowerCase()]=d.id; return d.id; } return null; }).catch(function(){return null;});
   }
 
+  /* ---- Objetos de datos (multi-selección) ---- */
+  var CATALOGO=[
+    {t:'DimAmbiente',s:'PLM'},{t:'DimArea',s:'MAESTRO'},{t:'DimBanco',s:'FMS'},{t:'DimCentroCosto',s:'FMS'},
+    {t:'DimCliente',s:'CRM'},{t:'DimCondicionPago',s:'SRM'},{t:'DimCorte',s:'MRP'},{t:'DimCuentaBancaria',s:'FMS'},
+    {t:'DimDocumentoOperaciones',s:'MAESTRO'},{t:'DimEmpleadoMrp',s:'MRP'},{t:'DimEquipo',s:'MRP'},{t:'DimEstatus',s:'MAESTRO'},
+    {t:'DimFecha',s:'MAESTRO'},{t:'DimFormaEntrega',s:'SRM'},{t:'DimFormaPago',s:'SRM'},{t:'DimMaterial',s:'MRP'},
+    {t:'DimMotivo',s:'MAESTRO'},{t:'DimMotivoInventario',s:'IMS'},{t:'DimNegociacion',s:'SRM'},{t:'DimOrdenProduccionEstatus',s:'MRP'},
+    {t:'DimPlanImpuesto',s:'FMS'},{t:'DimProduccionLote',s:'MRP'},{t:'DimProducto',s:'PLM'},{t:'DimProductoMrp',s:'MRP'},
+    {t:'DimProveedor',s:'MAESTRO'},{t:'DimReceta',s:'MRP'},{t:'DimSala',s:'MRP'},{t:'DimSucursal',s:'MAESTRO'},
+    {t:'DimTiempo',s:'MAESTRO'},{t:'DimTipoAjuste',s:'IMS'},{t:'DimTipoAnimal',s:'MRP'},{t:'DimTipoDevolucion',s:'SRM'},
+    {t:'DimTipoEntrega',s:'SRM'},{t:'DimTipoProduccionPlanificacion',s:'MRP'},{t:'DimTipoProductoProcesado',s:'MRP'},
+    {t:'DimTipoRecepcion',s:'SRM'},{t:'DimTipoTransferencia',s:'IMS'},{t:'DimTipoUso',s:'IMS'},{t:'DimTransaccion',s:'MAESTRO'},
+    {t:'DimUsuario',s:'SEG/AUD'},{t:'FactAjustesIngredientes',s:'MRP'},{t:'FactAjustesInventario',s:'IMS'},
+    {t:'FactAjustesMerma',s:'IMS'},{t:'FactCompras',s:'SRM'},{t:'FactConfigPrecios',s:'PLM'},{t:'FactConfigPreciosHistorico',s:'PLM'},
+    {t:'FactDevoluciones',s:'SRM'},{t:'FactExistencias',s:'IMS'},{t:'FactExistenciasIngredientes',s:'MRP'},
+    {t:'FactInventarioResumen',s:'IMS'},{t:'FactMovimientos',s:'IMS'},{t:'FactMovimientosIngredientes',s:'MRP'},
+    {t:'FactOrdenesCompras',s:'SRM'},{t:'FactOrdenesProduccionDetalle',s:'MRP'},{t:'FactOrdenesProduccionPlanificacionDetalle',s:'MRP'},
+    {t:'FactOrdenesProduccionReceta',s:'MRP'},{t:'FactOrdenesProduccionSalas',s:'MRP'},{t:'FactOrdenProduccionCancelacion',s:'MRP'},
+    {t:'FactOrdenProduccionDerivados',s:'MRP'},{t:'FactPlanesMaestroDetalle',s:'MRP'},{t:'FactProductoXSucursal',s:'MRP'},
+    {t:'FactRecepciones',s:'SRM'},{t:'FactRecetasDetalleXSucursal',s:'MRP'},{t:'FactRecetasXSucursal',s:'MRP'},
+    {t:'FactSaldoDiario',s:'IMS'},{t:'FactTransferencias',s:'IMS'},{t:'FactVentas',s:'POS'},{t:'ProductoXMaterial',s:'MRP'}
+  ];
+  var SVC_COLORS={ 'PLM':['#6d28d9','#ede9fe'],'MAESTRO':['#0f766e','#ccfbf1'],'FMS':['#b45309','#fef3c7'],
+    'CRM':['#be185d','#fce7f3'],'SRM':['#1d4ed8','#dbeafe'],'MRP':['#0369a1','#e0f2fe'],
+    'IMS':['#15803d','#dcfce7'],'POS':['#9333ea','#f3e8ff'],'SEG/AUD':['#475569','#e2e8f0'] };
+  var TN2SVC={}; CATALOGO.forEach(function(o){ TN2SVC[o.t]=o.s; });
+  var MODULES=[]; CATALOGO.forEach(function(o){ if(MODULES.indexOf(o.s)===-1) MODULES.push(o.s); });
+  var SEL={}; var activeMod=''; var objQuery='';
+
+  function svcBadge(s){ var c=SVC_COLORS[s]||['#475569','#e2e8f0']; return '<span class="svc" style="color:'+c[0]+';background:'+c[1]+'">'+esc(s)+'</span>'; }
+  function filtered(){
+    return CATALOGO.filter(function(o){
+      if(activeMod && o.s!==activeMod) return false;
+      if(objQuery){ var h=(o.t+' '+o.s).toLowerCase(); if(h.indexOf(objQuery)===-1) return false; }
+      return true;
+    });
+  }
+  function renderMods(){
+    var counts={}; CATALOGO.forEach(function(o){ counts[o.s]=(counts[o.s]||0)+1; });
+    var html='<span class="modchip'+(activeMod===''?' active':'')+'" data-mod="">Todos<span class="c">'+CATALOGO.length+'</span></span>';
+    html+=MODULES.map(function(m){ return '<span class="modchip'+(activeMod===m?' active':'')+'" data-mod="'+esc(m)+'">'+esc(m)+'<span class="c">'+counts[m]+'</span></span>'; }).join('');
+    var box=document.getElementById('objMods'); box.innerHTML=html;
+    Array.prototype.forEach.call(box.querySelectorAll('.modchip'), function(ch){
+      ch.addEventListener('click', function(){ activeMod=ch.getAttribute('data-mod'); renderMods(); renderList(); });
+    });
+  }
+  function renderList(){
+    var rows=filtered(), groups={}, order=[];
+    rows.forEach(function(o){ if(!groups[o.s]){ groups[o.s]=[]; order.push(o.s); } groups[o.s].push(o); });
+    var box=document.getElementById('objList');
+    if(!rows.length){ box.innerHTML='<div class="objrow" style="padding-left:12px;color:var(--muted);cursor:default">Sin coincidencias.</div>'; return; }
+    box.innerHTML=order.map(function(m){
+      var list=groups[m], selN=list.filter(function(o){return SEL[o.t];}).length;
+      var all=selN===list.length;
+      var rowsH=list.map(function(o){
+        return '<label class="objrow"><input type="checkbox" data-tn="'+esc(o.t)+'"'+(SEL[o.t]?' checked':'')+'><span class="tn">'+esc(o.t)+'</span>'+svcBadge(o.s)+'</label>';
+      }).join('');
+      return '<div class="objgroup"><div class="objgrouphd" data-mod="'+esc(m)+'"><input type="checkbox" data-grp="'+esc(m)+'"'+(all?' checked':'')+(selN&&!all?' data-indet="1"':'')+'>'+svcBadge(m)+'<span>'+esc(m)+'</span><span class="gcount">'+selN+' / '+list.length+'</span></div>'+rowsH+'</div>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('input[data-indet]'), function(c){ c.indeterminate=true; });
+    Array.prototype.forEach.call(box.querySelectorAll('input[data-tn]'), function(c){
+      c.addEventListener('change', function(e){ e.stopPropagation(); var tn=c.getAttribute('data-tn'); if(c.checked) SEL[tn]=1; else delete SEL[tn]; afterSel(); });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('input[data-grp]'), function(c){
+      c.addEventListener('click', function(e){ e.stopPropagation(); });
+      c.addEventListener('change', function(){ var m=c.getAttribute('data-grp'); CATALOGO.forEach(function(o){ if(o.s===m){ if(c.checked) SEL[o.t]=1; else delete SEL[o.t]; } }); afterSel(); });
+    });
+  }
+  function renderSel(){
+    var keys=Object.keys(SEL); document.getElementById('objCount').textContent=keys.length;
+    var box=document.getElementById('objSel');
+    if(!keys.length){ box.innerHTML='<span class="selempty">Aún no has seleccionado objetos.</span>'; return; }
+    keys.sort(function(a,b){ var sa=TN2SVC[a]||'',sb=TN2SVC[b]||''; return sa===sb?a.localeCompare(b):sa.localeCompare(sb); });
+    box.innerHTML=keys.map(function(tn){ return '<span class="selchip">'+svcBadge(TN2SVC[tn]||'')+esc(tn)+'<button type="button" data-tn="'+esc(tn)+'" title="Quitar">×</button></span>'; }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('button[data-tn]'), function(b){
+      b.addEventListener('click', function(){ delete SEL[b.getAttribute('data-tn')]; afterSel(); });
+    });
+  }
+  function afterSel(){ renderList(); renderSel(); if(Object.keys(SEL).length){ document.getElementById('objErr').classList.remove('show'); } }
+  function selectedObjetos(){ return Object.keys(SEL).map(function(tn){ return { tableName:tn, service:TN2SVC[tn]||null }; }); }
+
+  (function initObjs(){
+    renderMods(); renderList(); renderSel();
+    var srch=document.getElementById('objSearch');
+    srch.addEventListener('input', function(){ objQuery=srch.value.trim().toLowerCase(); renderList(); });
+    document.getElementById('objClear').addEventListener('click', function(){ SEL={}; afterSel(); });
+  })();
+
   function validate(){
     var ok=true, first=null;
     document.querySelectorAll('[data-req]').forEach(function(el){
@@ -193,7 +319,7 @@
   });
 
   function buildModel(){
-    return { solicitante:val('solicitante'), grupo:val('grupo'), usuario:val('usuario'), detalle_acceso:val('detalle'), estado:val('estado')||'Nuevo' };
+    return { solicitante:val('solicitante'), grupo:val('grupo'), usuario:val('usuario'), detalle_acceso:val('detalle'), estado:val('estado')||'Nuevo', objetos:selectedObjetos() };
   }
 
   function buildPrintHTML(m){
@@ -205,8 +331,14 @@
       'th{background:#f1f5f9;width:200px;font-weight:600}@media print{body{margin:12mm}}</style></head><body>'+
       '<h1>Solicitud de Acceso a DATA</h1><h2>Datos</h2><table>'+
         fld('Solicitante', m.solicitante)+fld('Nombre del grupo', m.grupo)+fld('Usuario', m.usuario)+fld('Estatus', m.estado)+
-        fld('Detalle de acceso', m.detalle_acceso)+
-      '</table></body></html>';
+        fld('Detalle / justificación', m.detalle_acceso)+fld('Objetos', String((m.objetos||[]).length)+' seleccionado(s)')+
+      '</table>'+objetosPrint(m.objetos)+'</body></html>';
+  }
+  function objetosPrint(objs){
+    objs=objs||[]; if(!objs.length) return '';
+    var rows=objs.slice().sort(function(a,b){ return (a.service||'')===(b.service||'')?a.tableName.localeCompare(b.tableName):(a.service||'').localeCompare(b.service||''); })
+      .map(function(o){ return '<tr><td>'+esc(o.tableName)+'</td><td>'+esc(o.service||'')+'</td></tr>'; }).join('');
+    return '<h2>Objetos de datos solicitados</h2><table><tr><th style="width:auto">Objeto</th><th style="width:120px">Módulo</th></tr>'+rows+'</table>';
   }
   function downloadPdf(m){
     var ifr=document.createElement('iframe');
@@ -218,7 +350,10 @@
   }
 
   document.getElementById('btnReview').addEventListener('click', function(){
-    if(!validate()){ setStatus('Faltan campos obligatorios.', 'err'); return; }
+    var okReq=validate();
+    var okObj=Object.keys(SEL).length>0;
+    if(!okObj){ var oe=document.getElementById('objErr'); oe.classList.add('show'); if(okReq){ oe.scrollIntoView({behavior:'smooth',block:'center'}); } }
+    if(!okReq || !okObj){ setStatus('Faltan campos obligatorios'+(!okObj?' (selecciona objetos)':'')+'.', 'err'); return; }
     lastModel=buildModel();
     var ms=document.getElementById('modalStatus'); ms.textContent=''; ms.className='status';
     document.getElementById('modal').classList.add('show');
@@ -244,7 +379,7 @@
   document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
   document.getElementById('btnReset').addEventListener('click', function(){
     if(!confirm('¿Limpiar el formulario?')) return;
-    document.getElementById('accForm').reset(); setStatus('Formulario limpio.');
+    document.getElementById('accForm').reset(); SEL={}; objQuery=''; activeMod=''; renderMods(); afterSel(); setStatus('Formulario limpio.');
   });
 })();
 </script>

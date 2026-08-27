@@ -2,10 +2,11 @@
 
 /*
  * /api/solicitudes-acceso
- *   GET                -> lista (filtros ?estado= &q=)
- *   GET /{id}          -> detalle completo
- *   POST               -> crea solicitud de acceso a DATA
- *   PATCH /{id}        -> actualiza seguimiento (Estado / Responsable / FechaEntrega)
+ *   GET                      -> lista (filtros ?estado= &q=)
+ *   GET ?resumen=modulos     -> auditoría por módulo { Service, Solicitados, Aprobados, Otorgados }
+ *   GET /{id}                -> detalle + objetos seleccionados
+ *   POST                     -> crea solicitud + objetos de datos
+ *   PATCH /{id}              -> actualiza seguimiento (Estado / Responsable / FechaEntrega)
  */
 
 const sql = require('mssql');
@@ -30,6 +31,21 @@ function getPool() { if (!poolPromise) { poolPromise = sql.connect(config).catch
 function str(v, max) { if (v == null) return null; var s = String(v).trim(); if (!s) return null; return max ? s.slice(0, max) : s; }
 function toInt(v) { if (v == null || v === '') return null; var n = parseInt(v, 10); return isNaN(n) ? null : n; }
 function toDate(v) { var s = str(v); if (!s) return null; var d = new Date(s); return isNaN(d.getTime()) ? null : d; }
+
+/* normaliza model.objetos -> [{ tableName, service }] (acepta strings u objetos) */
+function normObjetos(list) {
+  if (!Array.isArray(list)) return [];
+  var out = [], seen = {};
+  for (var i = 0; i < list.length; i++) {
+    var o = list[i], tn = null, sv = null;
+    if (o && typeof o === 'object') { tn = str(o.tableName || o.TableName || o.nombre, 200); sv = str(o.service || o.Service, 50); }
+    else { tn = str(o, 200); }
+    if (!tn || seen[tn.toLowerCase()]) continue;
+    seen[tn.toLowerCase()] = 1;
+    out.push({ tableName: tn, service: sv });
+  }
+  return out;
+}
 
 async function handleList(context, req, respond) {
   try {
@@ -56,6 +72,25 @@ async function handleList(context, req, respond) {
   }
 }
 
+async function handleResumenModulos(context, req, respond) {
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query(
+      'SELECT o.Service AS Service, ' +
+      'COUNT(*) AS Solicitados, ' +
+      "SUM(CASE WHEN s.Estado = 'Aprobado' THEN 1 ELSE 0 END) AS Aprobados, " +
+      "SUM(CASE WHEN s.Estado = 'Completado' THEN 1 ELSE 0 END) AS Otorgados " +
+      'FROM dbo.SolicitudAccesoObjetos o ' +
+      'JOIN dbo.SolicitudesAcceso s ON s.Id = o.SolicitudId ' +
+      'GROUP BY o.Service ORDER BY o.Service'
+    );
+    return respond(200, { ok: true, items: result.recordset || [] });
+  } catch (err) {
+    context.log.error('Acceso resumen error: ' + err.message);
+    return respond(500, { ok: false, error: 'No se pudo consultar el resumen por módulo.', debug: { message: err.message } });
+  }
+}
+
 async function handleGetOne(context, req, respond) {
   const id = parseInt(req.params.id, 10);
   if (!id || isNaN(id)) return respond(400, { ok: false, error: 'Id inválido.' });
@@ -65,7 +100,9 @@ async function handleGetOne(context, req, respond) {
     const result = await r.query('SELECT * FROM dbo.SolicitudesAcceso WHERE Id = @Id');
     const row = result.recordset && result.recordset[0];
     if (!row) return respond(404, { ok: false, error: 'Solicitud no encontrada.' });
-    return respond(200, { ok: true, item: row });
+    const r2 = pool.request(); r2.input('Id', sql.Int, id);
+    const objs = await r2.query('SELECT TableName, Service FROM dbo.SolicitudAccesoObjetos WHERE SolicitudId = @Id ORDER BY Service, TableName');
+    return respond(200, { ok: true, item: row, objetos: (objs.recordset || []) });
   } catch (err) {
     context.log.error('Acceso detalle error: ' + err.message);
     return respond(500, { ok: false, error: 'No se pudo obtener el detalle.', debug: { message: err.message } });
@@ -102,12 +139,15 @@ async function handleCreate(context, req, respond) {
   const solicitante = str(model.solicitante, 200);
   const grupo = str(model.grupo, 200);
   const usuario = str(model.usuario, 200);
+  const objetos = normObjetos(model.objetos);
   if (!solicitante || !grupo) return respond(400, { ok: false, error: 'Faltan datos obligatorios (solicitante y grupo).' });
 
   const titulo = str((grupo || '') + (usuario ? (' · ' + usuario) : ''), 300);
+  const pool = await getPool();
+  const tx = new sql.Transaction(pool);
   try {
-    const pool = await getPool();
-    const r = pool.request();
+    await tx.begin();
+    const r = new sql.Request(tx);
     r.input('Titulo', sql.NVarChar(300), titulo);
     r.input('Solicitante', sql.NVarChar(200), solicitante);
     r.input('GrupoId', sql.Int, toInt(model.grupo_id));
@@ -121,8 +161,19 @@ async function handleCreate(context, req, respond) {
       'OUTPUT INSERTED.Id VALUES (@Titulo, @Solicitante, @GrupoId, @Grupo, @Usuario, @DetalleAcceso, @Estado, @PayloadJson)'
     );
     const newId = result.recordset && result.recordset[0] ? result.recordset[0].Id : null;
-    return respond(201, { ok: true, id: newId });
+
+    for (let i = 0; i < objetos.length; i++) {
+      const ro = new sql.Request(tx);
+      ro.input('SolicitudId', sql.Int, newId);
+      ro.input('TableName', sql.NVarChar(200), objetos[i].tableName);
+      ro.input('Service', sql.NVarChar(50), objetos[i].service);
+      await ro.query('INSERT INTO dbo.SolicitudAccesoObjetos (SolicitudId, TableName, Service) VALUES (@SolicitudId, @TableName, @Service)');
+    }
+
+    await tx.commit();
+    return respond(201, { ok: true, id: newId, objetos: objetos.length });
   } catch (err) {
+    try { await tx.rollback(); } catch (e) {}
     context.log.error('Acceso create error: ' + err.message);
     return respond(500, { ok: false, error: 'No se pudo guardar en la base de datos.', debug: { message: err.message } });
   }
@@ -134,7 +185,10 @@ module.exports = async function (context, req) {
     return respond(500, { ok: false, error: 'El servidor no tiene configurada la conexión a SQL.' });
   }
   const method = (req.method || 'POST').toUpperCase();
-  if (method === 'GET')   { return (req.params && req.params.id) ? await handleGetOne(context, req, respond) : await handleList(context, req, respond); }
+  if (method === 'GET') {
+    if (req.query && String(req.query.resumen || '').toLowerCase() === 'modulos') return await handleResumenModulos(context, req, respond);
+    return (req.params && req.params.id) ? await handleGetOne(context, req, respond) : await handleList(context, req, respond);
+  }
   if (method === 'PATCH') { return await handleUpdate(context, req, respond); }
   return await handleCreate(context, req, respond);
 };

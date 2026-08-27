@@ -248,6 +248,17 @@
     </div>
   </div>
 
+  <div class="chart-card" id="auditCard" style="margin-bottom:18px">
+    <h3>Auditoría de accesos por módulo</h3>
+    <p class="csub">Objetos de datos — Solicitados vs Aprobados vs Otorgados (por servicio)</p>
+    <div id="auditBars"><div class="state" style="padding:16px">Cargando…</div></div>
+    <div class="barlegend">
+      <span class="li"><span class="sw" style="background:#64748b"></span>Solicitados</span>
+      <span class="li"><span class="sw" style="background:var(--brand)"></span>Aprobados</span>
+      <span class="li"><span class="sw" style="background:var(--ok)"></span>Otorgados</span>
+    </div>
+  </div>
+
   <div class="toolbar">
     <div class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -322,13 +333,23 @@
     }
     return esc(String(v));
   }
+  function objetosDetail(objs){
+    if(!objs||!objs.length) return '';
+    var by={}, order=[];
+    objs.forEach(function(o){ var s=o.Service||o.service||'—', t=o.TableName||o.tableName||''; if(!by[s]){by[s]=[];order.push(s);} by[s].push(t); });
+    order.sort();
+    var html=order.map(function(s){ return '<div style="margin-bottom:7px"><strong>'+esc(s)+'</strong> <span style="color:var(--muted)">('+by[s].length+')</span><div class="sub" style="margin-top:2px">'+by[s].map(esc).join(', ')+'</div></div>'; }).join('');
+    return '<div class="dsec"><h4>Objetos de datos solicitados ('+objs.length+')</h4>'+html+'</div>';
+  }
   function renderDetail(item){
     var payload={}; try{ payload=item.PayloadJson?JSON.parse(item.PayloadJson):{}; }catch(e){}
     var out='<div class="dsec"><h4>Seguimiento</h4><div class="dkv">'+
       kv('Id','#'+item.Id)+kv('Registrada',fmtDateTime(item.FechaRegistro))+kv('Estado',item.Estado)+
       kv('Responsable',item.Responsable)+kv('Fecha entrega',fmtDate(item.FechaEntrega))+'</div></div>';
+    out+=objetosDetail(item._objetos);
     var simple=[], complex='';
     Object.keys(payload).forEach(function(k){
+      if(k==='objetos') return;
       var v=payload[k]; if(isEmpty(v)) return;
       if(v && typeof v==='object'){
         if(Array.isArray(v) && typeof v[0]!=='object'){ simple.push([k, v.join(', ')]); }
@@ -563,6 +584,7 @@
       if(!d||!d.ok){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">'+esc((d&&d.error)||'No se pudo cargar el detalle')+'</div>'; return; }
       document.getElementById('detailTitle').textContent = (d.item.Titulo||d.item.Aplicacion||('#'+d.item.Id));
       detailIt={ tipo: it._tipo, id: d.item.Id }; detailData=d.item; detailNotas=[]; detailDocs=[]; detailPase=null;
+      d.item._objetos=d.objetos||[];
       document.getElementById('detailBody').innerHTML=renderDetail(d.item)+paseUI()+docsUI()+notesUI();
       bindPase(); loadPase(); bindDocs(); loadDocs(); bindNotas(); loadNotas();
     }).catch(function(){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">Error de red al cargar el detalle.</div>'; });
@@ -693,6 +715,23 @@
         '<div class="bar"><div class="track"><div class="fill" style="width:'+(a/max*100)+'%;background:var(--acceso)"></div></div><span class="bv">'+a+'</span></div>'+
         '</div></div>';
     }).join('');
+  }
+
+  /* ---------- Auditoría de accesos por módulo ---------- */
+  function auditBar(v,max,color){ return '<div class="bar"><div class="track"><div class="fill" style="width:'+(max?(v/max*100):0)+'%;background:'+color+'"></div></div><span class="bv">'+v+'</span></div>'; }
+  function renderAudit(){
+    var box=document.getElementById('auditBars'); if(!box) return;
+    fetch(API.acceso+'?resumen=modulos').then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d||!d.ok){ box.innerHTML='<div class="state" style="padding:16px">Sin datos.</div>'; return; }
+      var items=d.items||[];
+      if(!items.length){ box.innerHTML='<div class="state" style="padding:16px">Aún no hay objetos de datos solicitados.</div>'; return; }
+      var max=1; items.forEach(function(it){ max=Math.max(max, it.Solicitados||0, it.Aprobados||0, it.Otorgados||0); });
+      box.innerHTML=items.map(function(it){
+        return '<div class="barrow"><div class="barlbl">'+esc(it.Service||'—')+'</div><div class="bars">'+
+          auditBar(it.Solicitados||0,max,'#64748b')+auditBar(it.Aprobados||0,max,'var(--brand)')+auditBar(it.Otorgados||0,max,'var(--ok)')+
+          '</div></div>';
+      }).join('');
+    }).catch(function(){ box.innerHTML='<div class="state" style="padding:16px">Error al cargar la auditoría.</div>'; });
   }
 
   /* ---------- Tabla ---------- */
@@ -846,7 +885,7 @@
       document.getElementById('cnt-erp').textContent=DATA.erp.length;
       document.getElementById('cnt-gen').textContent=DATA.gen.length;
       document.getElementById('cnt-acceso').textContent=DATA.acceso.length;
-      renderAll();
+      renderAll(); renderAudit();
     });
   }
 
