@@ -49,7 +49,16 @@ GO
         (N'FactProductoXSucursal',N'MRP'),(N'FactRecepciones',N'SRM'),
         (N'FactRecetasDetalleXSucursal',N'MRP'),(N'FactRecetasXSucursal',N'MRP'),
         (N'FactSaldoDiario',N'IMS'),(N'FactTransferencias',N'IMS'),(N'FactVentas',N'POS'),
-        (N'ProductoXMaterial',N'MRP')
+        (N'ProductoXMaterial',N'MRP'),
+        (N'CobrosCuentasXCobrar',N'FMS'),(N'DimCuentaContable',N'FMS'),(N'DimEjercicioFiscal',N'FMS'),
+        (N'DimEmpresa',N'FMS'),(N'DimLote',N'FMS'),(N'DimPeriodoFiscal',N'FMS'),
+        (N'DimTipoAjusteBancario',N'FMS'),(N'DimTipoMovimientoDiario',N'FMS'),(N'DocumentosRelacionados',N'FMS'),
+        (N'FactCartasPago',N'FMS'),(N'FactCobros',N'FMS'),(N'FactComprobantesISLR',N'FMS'),
+        (N'FactComprobantesIVA',N'FMS'),(N'FactConciliacionesBancarias',N'FMS'),(N'FactCuentasPorCobrar',N'FMS'),
+        (N'FactCuentasPorPagar',N'FMS'),(N'FactDetallesTransaccionesBancarias',N'FMS'),(N'FactDevolucionesXCuentasXPagar',N'FMS'),
+        (N'FactEstadosCuenta',N'FMS'),(N'FactLibroCompras',N'FMS'),(N'FactLibroVentas',N'FMS'),
+        (N'FactMovimientosContables',N'FMS'),(N'FactPagos',N'FMS'),(N'FactTransaccionesBancarias',N'FMS'),
+        (N'FactTransferenciasBancarias',N'FMS'),(N'PagosXCuentasXPagar',N'FMS')
     ) v(TableName, Service)
 )
 INSERT INTO dbo.DataObjetos (TableName, Service)
