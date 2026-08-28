@@ -52,6 +52,18 @@
   .spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
   @keyframes spin{to{transform:rotate(360deg)}}
   .err-txt{color:var(--err)}
+  .toolbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px;box-shadow:var(--shadow-sm)}
+  .seg button{border:none;background:transparent;color:var(--muted);font-size:13px;font-weight:600;padding:7px 13px;border-radius:9px;cursor:pointer;font-family:inherit}
+  .seg button.active{background:var(--brand);color:#fff}
+  .tlabel{font-size:12px;color:var(--muted);font-weight:600}
+  .filter{padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font-size:13px;font-family:inherit}
+  .group-h{display:flex;align-items:center;gap:12px;margin:22px 0 12px}
+  .group-h .gname{font-size:15px;font-weight:750}
+  .group-h .gmeta{font-size:12px;color:var(--muted);font-weight:600}
+  .group-h .gline{flex:1;height:1px;background:var(--line)}
+  .tchip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  .cli{color:var(--muted);font-size:12px;display:inline-flex;align-items:center;gap:5px}
 </style>
 </head>
 <body>
@@ -72,8 +84,20 @@
 </div>
 <div class="wrap">
   <h1>Dashboard de Proyectos</h1>
-  <p class="lead">Portafolio de proyectos con avance consolidado. Haz clic en un proyecto para abrir su cronograma (Gantt).</p>
+  <p class="lead">Portafolio de proyectos con avance consolidado. Agrupa y filtra por cliente o tipo. Haz clic en un proyecto para abrir su cronograma (Gantt).</p>
   <div class="kpis" id="kpis"></div>
+  <div class="toolbar" id="toolbar" style="display:none">
+    <span class="tlabel">Agrupar por</span>
+    <div class="seg" id="grpSeg">
+      <button data-g="none" class="active">Ninguno</button>
+      <button data-g="Cliente">Cliente</button>
+      <button data-g="Tipo">Tipo</button>
+    </div>
+    <span class="tlabel">Tipo</span>
+    <select class="filter" id="fTipo"><option value="">Todos</option></select>
+    <span class="tlabel">Cliente</span>
+    <select class="filter" id="fCliente"><option value="">Todos</option></select>
+  </div>
   <div id="cards"><div class="state"><div class="spinner"></div>Cargando…</div></div>
 </div>
 <script>
@@ -81,39 +105,80 @@
   "use strict";
   var EST={ "Activo":["#4f46e5","rgba(79,70,229,.14)"],"En pausa":["#b45309","rgba(217,119,6,.16)"],
     "Completado":["#047857","rgba(4,120,87,.16)"],"Cancelado":["#b91c1c","rgba(220,38,38,.16)"] };
+  var TIPO={ "CCTV":["#2563eb","#dbeafe"],"IT":["#7c3aed","#ede9fe"],"IA":["#0d9488","#ccfbf1"] };
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function estColor(e){ return EST[e]||["#475569","rgba(100,116,139,.14)"]; }
   function pill(e){ var c=estColor(e); return '<span class="pill" style="color:'+c[0]+';background:'+c[1]+'"><span class="d" style="background:'+c[0]+'"></span>'+esc(e||'—')+'</span>'; }
+  function tipoChip(t){ if(!t) return ''; var c=TIPO[t]||["#475569","rgba(100,116,139,.16)"]; return '<span class="tchip" style="color:'+c[0]+';background:'+c[1]+'">'+esc(t)+'</span>'; }
   function fmt(v){ if(!v) return ''; var d=new Date(v); return isNaN(d)?'':d.toISOString().slice(0,10); }
+
+  var ITEMS=[], groupBy='none';
+
+  function card(p){
+    var av=Math.round(p.Avance||0);
+    var ini=p.FechaInicio||p.TareaMin, fin=p.FechaFin||p.TareaMax;
+    var rango=(ini?fmt(ini):'—')+' → '+(fin?fmt(fin):'—');
+    return '<a class="pcard" href="/gantt.html?proyecto='+p.Id+'">'+
+      '<h3>'+esc(p.Nombre)+'</h3>'+
+      '<div class="sub">'+pill(p.Estado)+tipoChip(p.Tipo)+(p.Cliente?('<span class="cli">'+esc(p.Cliente)+'</span>'):'')+'<span>'+esc(p.Responsable||'—')+'</span></div>'+
+      '<div class="prow"><div class="bar" style="flex:1"><i style="width:'+av+'%"></i></div><span class="pct">'+av+'%</span></div>'+
+      '<div class="metrics"><span><b>'+(p.Tareas||0)+'</b> tareas</span><span><b>'+(p.Hitos||0)+'</b> hitos</span><span>'+esc(rango)+'</span></div>'+
+    '</a>';
+  }
+  function groupHeader(name, list){
+    var av = list.length ? Math.round(list.reduce(function(a,p){return a+(p.Avance||0);},0)/list.length) : 0;
+    return '<div class="group-h"><span class="gname">'+esc(name)+'</span><span class="gmeta">'+list.length+' proyecto(s) · '+av+'% avance</span><span class="gline"></span></div>';
+  }
+  function fillOptions(sel, values, cur){
+    sel.innerHTML='<option value="">Todos</option>'+values.map(function(v){ return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v)+'</option>'; }).join('');
+  }
+
+  function render(){
+    var cards=document.getElementById('cards');
+    var fT=document.getElementById('fTipo').value, fC=document.getElementById('fCliente').value;
+    var items=ITEMS.filter(function(p){
+      if(fT && (p.Tipo||'')!==fT) return false;
+      if(fC && (p.Cliente||'')!==fC) return false;
+      return true;
+    });
+    if(!items.length){ cards.innerHTML='<div class="state">No hay proyectos que coincidan con el filtro.</div>'; return; }
+    if(groupBy==='none'){ cards.innerHTML='<div class="cards">'+items.map(card).join('')+'</div>'; return; }
+    var key=groupBy, g={}, order=[];
+    items.forEach(function(p){ var k=p[key]||('(sin '+(key==='Cliente'?'cliente':'tipo')+')'); if(!g[k]){g[k]=[];order.push(k);} g[k].push(p); });
+    order.sort(function(a,b){ return a.localeCompare(b); });
+    cards.innerHTML=order.map(function(k){ return groupHeader(k, g[k])+'<div class="cards">'+g[k].map(card).join('')+'</div>'; }).join('');
+  }
 
   fetch('/api/proyectos?resumen=1').then(function(r){ if(r.status===401){ location.href='/.auth/login/aad'; return null; } return r.json(); }).then(function(d){
     var cards=document.getElementById('cards');
     if(!d) return;
     if(!d.ok){ document.getElementById('kpis').innerHTML=''; cards.innerHTML='<div class="state err-txt">'+esc(d.error||'Error')+(d.debug?(' — '+esc(d.debug.message)):'')+'</div>'; return; }
-    var items=d.items||[];
-    var avg = items.length ? Math.round(items.reduce(function(a,p){return a+(p.Avance||0);},0)/items.length) : 0;
-    var activos=items.filter(function(p){return p.Estado==='Activo';}).length;
-    var tareas=items.reduce(function(a,p){return a+(p.Tareas||0);},0);
-    var hitos=items.reduce(function(a,p){return a+(p.Hitos||0);},0);
+    ITEMS=d.items||[];
+    var avg = ITEMS.length ? Math.round(ITEMS.reduce(function(a,p){return a+(p.Avance||0);},0)/ITEMS.length) : 0;
+    var activos=ITEMS.filter(function(p){return p.Estado==='Activo';}).length;
+    var tareas=ITEMS.reduce(function(a,p){return a+(p.Tareas||0);},0);
+    var clientes={}; ITEMS.forEach(function(p){ if(p.Cliente) clientes[p.Cliente]=1; });
     document.getElementById('kpis').innerHTML=
-      '<div class="kpi"><div class="n">'+items.length+'</div><div class="l">Proyectos</div></div>'+
+      '<div class="kpi"><div class="n">'+ITEMS.length+'</div><div class="l">Proyectos</div></div>'+
       '<div class="kpi"><div class="n" style="color:#4f46e5">'+activos+'</div><div class="l">Activos</div></div>'+
       '<div class="kpi"><div class="n" style="color:#6d28d9">'+avg+'%</div><div class="l">Avance promedio</div></div>'+
       '<div class="kpi"><div class="n">'+tareas+'</div><div class="l">Tareas</div></div>'+
-      '<div class="kpi"><div class="n">'+hitos+'</div><div class="l">Hitos</div></div>';
-    if(!items.length){ cards.innerHTML='<div class="state">Aún no hay proyectos. Crea uno desde el cronograma (Gantt).</div>'; return; }
-    cards.innerHTML='<div class="cards">'+items.map(function(p){
-      var av=Math.round(p.Avance||0);
-      var ini=p.FechaInicio||p.TareaMin, fin=p.FechaFin||p.TareaMax;
-      var rango=(ini?fmt(ini):'—')+' → '+(fin?fmt(fin):'—');
-      return '<a class="pcard" href="/gantt.html?proyecto='+p.Id+'">'+
-        '<h3>'+esc(p.Nombre)+'</h3>'+
-        '<div class="sub">'+pill(p.Estado)+'<span>'+esc(p.Responsable||'—')+'</span></div>'+
-        '<div class="prow"><div class="bar" style="flex:1"><i style="width:'+av+'%"></i></div><span class="pct">'+av+'%</span></div>'+
-        '<div class="metrics"><span><b>'+(p.Tareas||0)+'</b> tareas</span><span><b>'+(p.Hitos||0)+'</b> hitos</span><span>'+esc(rango)+'</span></div>'+
-      '</a>';
-    }).join('')+'</div>';
+      '<div class="kpi"><div class="n">'+Object.keys(clientes).length+'</div><div class="l">Clientes</div></div>';
+    if(!ITEMS.length){ cards.innerHTML='<div class="state">Aún no hay proyectos. Crea uno desde el cronograma (Gantt).</div>'; return; }
+    var tipos={}; ITEMS.forEach(function(p){ if(p.Tipo) tipos[p.Tipo]=1; });
+    fillOptions(document.getElementById('fTipo'), Object.keys(tipos).sort(), '');
+    fillOptions(document.getElementById('fCliente'), Object.keys(clientes).sort(), '');
+    document.getElementById('toolbar').style.display='';
+    render();
   }).catch(function(){ document.getElementById('cards').innerHTML='<div class="state err-txt">Error de red.</div>'; });
+
+  document.getElementById('grpSeg').addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){x.classList.remove('active');});
+    b.classList.add('active'); groupBy=b.getAttribute('data-g'); render();
+  });
+  document.getElementById('fTipo').addEventListener('change', render);
+  document.getElementById('fCliente').addEventListener('change', render);
 })();
 </script>
 </body>

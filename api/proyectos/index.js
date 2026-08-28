@@ -38,13 +38,13 @@ async function handleList(context, req, respond) {
     const pool = await getPool();
     const resumen = req.query && (req.query.resumen === '1' || req.query.resumen === 'true');
     const sqlText = resumen
-      ? ('SELECT p.Id, p.Nombre, p.Responsable, p.Estado, p.FechaInicio, p.FechaFin, ' +
+      ? ('SELECT p.Id, p.Nombre, p.Responsable, p.Estado, p.Tipo, p.Cliente, p.FechaInicio, p.FechaFin, ' +
          'COUNT(t.Id) AS Tareas, SUM(CASE WHEN t.EsHito=1 THEN 1 ELSE 0 END) AS Hitos, ' +
          'AVG(CASE WHEN t.EsHito=0 THEN CAST(t.Progreso AS FLOAT) END) AS Avance, ' +
          'MIN(t.FechaInicio) AS TareaMin, MAX(t.FechaFin) AS TareaMax ' +
          'FROM dbo.Proyectos p LEFT JOIN dbo.ProyectoTareas t ON t.ProyectoId = p.Id ' +
-         'GROUP BY p.Id, p.Nombre, p.Responsable, p.Estado, p.FechaInicio, p.FechaFin ORDER BY p.Nombre')
-      : ('SELECT Id, Nombre, Descripcion, Responsable, FechaInicio, FechaFin, Estado, FechaRegistro FROM dbo.Proyectos ORDER BY Nombre');
+         'GROUP BY p.Id, p.Nombre, p.Responsable, p.Estado, p.Tipo, p.Cliente, p.FechaInicio, p.FechaFin ORDER BY p.Nombre')
+      : ('SELECT Id, Nombre, Descripcion, Responsable, Tipo, Cliente, FechaInicio, FechaFin, Estado, FechaRegistro FROM dbo.Proyectos ORDER BY Nombre');
     const result = await pool.request().query(sqlText);
     return respond(200, { ok: true, items: result.recordset || [] });
   } catch (err) {
@@ -66,9 +66,11 @@ async function handleCreate(context, req, respond) {
     r.input('FechaInicio', sql.Date, toDate(b.fechaInicio));
     r.input('FechaFin', sql.Date, toDate(b.fechaFin));
     r.input('Estado', sql.NVarChar(50), str(b.estado, 50) || 'Activo');
+    r.input('Tipo', sql.NVarChar(60), str(b.tipo, 60));
+    r.input('Cliente', sql.NVarChar(120), str(b.cliente, 120));
     const result = await r.query(
-      'INSERT INTO dbo.Proyectos (Nombre, Descripcion, Responsable, FechaInicio, FechaFin, Estado) ' +
-      'OUTPUT INSERTED.Id VALUES (@Nombre, @Descripcion, @Responsable, @FechaInicio, @FechaFin, @Estado)'
+      'INSERT INTO dbo.Proyectos (Nombre, Descripcion, Responsable, FechaInicio, FechaFin, Estado, Tipo, Cliente) ' +
+      'OUTPUT INSERTED.Id VALUES (@Nombre, @Descripcion, @Responsable, @FechaInicio, @FechaFin, @Estado, @Tipo, @Cliente)'
     );
     const id = result.recordset && result.recordset[0] ? result.recordset[0].Id : null;
     return respond(201, { ok: true, id: id });
@@ -92,10 +94,13 @@ async function handleUpdate(context, req, respond) {
     r.input('FechaInicio', sql.Date, toDate(b.fechaInicio));
     r.input('FechaFin', sql.Date, toDate(b.fechaFin));
     r.input('Estado', sql.NVarChar(50), str(b.estado, 50));
+    r.input('Tipo', sql.NVarChar(60), str(b.tipo, 60));
+    r.input('Cliente', sql.NVarChar(120), str(b.cliente, 120));
     const result = await r.query(
       'UPDATE dbo.Proyectos SET ' +
       'Nombre = COALESCE(@Nombre, Nombre), Descripcion = @Descripcion, Responsable = @Responsable, ' +
-      'FechaInicio = @FechaInicio, FechaFin = @FechaFin, Estado = COALESCE(@Estado, Estado) WHERE Id = @Id'
+      'FechaInicio = @FechaInicio, FechaFin = @FechaFin, Estado = COALESCE(@Estado, Estado), ' +
+      'Tipo = @Tipo, Cliente = @Cliente WHERE Id = @Id'
     );
     const affected = result.rowsAffected && result.rowsAffected[0] ? result.rowsAffected[0] : 0;
     if (!affected) return respond(404, { ok: false, error: 'Proyecto no encontrado.' });
