@@ -64,6 +64,10 @@
   .group-h .gline{flex:1;height:1px;background:var(--line)}
   .tchip{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.02em}
   .cli{color:var(--muted);font-size:12px;display:inline-flex;align-items:center;gap:5px}
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 14px;font-size:13px;font-weight:650;cursor:pointer;font-family:inherit}
+  .btn:hover{background:var(--brand-soft);color:var(--brand-2)}
+  .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .btn.primary:hover{background:var(--brand-2)}
 </style>
 </head>
 <body>
@@ -97,6 +101,9 @@
     <select class="filter" id="fTipo"><option value="">Todos</option></select>
     <span class="tlabel">Cliente</span>
     <select class="filter" id="fCliente"><option value="">Todos</option></select>
+    <div class="grow"></div>
+    <button class="btn" id="btnPdf">Resumen PDF</button>
+    <button class="btn primary" id="btnMail">Enviar por correo</button>
   </div>
   <div id="cards"><div class="state"><div class="spinner"></div>Cargando…</div></div>
 </div>
@@ -133,20 +140,118 @@
     sel.innerHTML='<option value="">Todos</option>'+values.map(function(v){ return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v)+'</option>'; }).join('');
   }
 
-  function render(){
-    var cards=document.getElementById('cards');
+  function filteredItems(){
     var fT=document.getElementById('fTipo').value, fC=document.getElementById('fCliente').value;
-    var items=ITEMS.filter(function(p){
+    return ITEMS.filter(function(p){
       if(fT && (p.Tipo||'')!==fT) return false;
       if(fC && (p.Cliente||'')!==fC) return false;
       return true;
     });
-    if(!items.length){ cards.innerHTML='<div class="state">No hay proyectos que coincidan con el filtro.</div>'; return; }
-    if(groupBy==='none'){ cards.innerHTML='<div class="cards">'+items.map(card).join('')+'</div>'; return; }
+  }
+  function kpisOf(items){
+    var n=items.length;
+    return {
+      n:n, activos:items.filter(function(p){return p.Estado==='Activo';}).length,
+      avg: n?Math.round(items.reduce(function(a,p){return a+(p.Avance||0);},0)/n):0,
+      tareas:items.reduce(function(a,p){return a+(p.Tareas||0);},0),
+      hitos:items.reduce(function(a,p){return a+(p.Hitos||0);},0),
+      clientes:(function(){var c={};items.forEach(function(p){if(p.Cliente)c[p.Cliente]=1;});return Object.keys(c).length;})()
+    };
+  }
+  function grouped(items){
+    if(groupBy==='none') return [{name:null, items:items}];
     var key=groupBy, g={}, order=[];
     items.forEach(function(p){ var k=p[key]||('(sin '+(key==='Cliente'?'cliente':'tipo')+')'); if(!g[k]){g[k]=[];order.push(k);} g[k].push(p); });
     order.sort(function(a,b){ return a.localeCompare(b); });
-    cards.innerHTML=order.map(function(k){ return groupHeader(k, g[k])+'<div class="cards">'+g[k].map(card).join('')+'</div>'; }).join('');
+    return order.map(function(k){ return {name:k, items:g[k]}; });
+  }
+  function ctxLabel(){
+    var fT=document.getElementById('fTipo').value, fC=document.getElementById('fCliente').value;
+    return 'Tipo: '+(fT||'Todos')+'   ·   Cliente: '+(fC||'Todos')+'   ·   Agrupado por: '+(groupBy==='none'?'Ninguno':groupBy);
+  }
+
+  function render(){
+    var cards=document.getElementById('cards');
+    var items=filteredItems();
+    if(!items.length){ cards.innerHTML='<div class="state">No hay proyectos que coincidan con el filtro.</div>'; return; }
+    if(groupBy==='none'){ cards.innerHTML='<div class="cards">'+items.map(card).join('')+'</div>'; return; }
+    cards.innerHTML=grouped(items).map(function(gr){ return groupHeader(gr.name, gr.items)+'<div class="cards">'+gr.items.map(card).join('')+'</div>'; }).join('');
+  }
+
+  /* -------- Resumen ejecutivo: PDF y correo -------- */
+  function today(){ var d=new Date(); return d.toLocaleDateString('es'); }
+  function pctCell(av){ return '<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:7px;background:#e2e8f0;border-radius:6px;overflow:hidden"><div style="height:100%;width:'+av+'%;background:#6d28d9"></div></div><b>'+av+'%</b></div>'; }
+  function rowHTML(p){
+    var av=Math.round(p.Avance||0);
+    var ini=p.FechaInicio||p.TareaMin, fin=p.FechaFin||p.TareaMax;
+    return '<tr>'+
+      '<td>'+esc(p.Nombre)+'</td>'+
+      '<td>'+esc(p.Tipo||'—')+'</td>'+
+      '<td>'+esc(p.Cliente||'—')+'</td>'+
+      '<td>'+esc(p.Estado||'—')+'</td>'+
+      '<td style="min-width:120px">'+pctCell(av)+'</td>'+
+      '<td>'+esc(p.Responsable||'—')+'</td>'+
+      '<td>'+(ini?fmt(ini):'—')+' → '+(fin?fmt(fin):'—')+'</td>'+
+      '<td style="text-align:center">'+(p.Tareas||0)+'</td>'+
+      '<td style="text-align:center">'+(p.Hitos||0)+'</td>'+
+    '</tr>';
+  }
+  function tableHTML(list){
+    return '<table><thead><tr><th>Proyecto</th><th>Tipo</th><th>Cliente</th><th>Estado</th><th>Avance</th><th>Responsable</th><th>Periodo</th><th>Tareas</th><th>Hitos</th></tr></thead><tbody>'+
+      list.map(rowHTML).join('')+'</tbody></table>';
+  }
+  function buildSummaryHTML(){
+    var items=filteredItems(), k=kpisOf(items);
+    var kpi=function(n,l,c){ return '<div class="k"><div class="n"'+(c?(' style="color:'+c+'"'):'')+'>'+n+'</div><div class="l">'+l+'</div></div>'; };
+    var body='';
+    grouped(items).forEach(function(gr){
+      if(gr.name!=null){ var ga=gr.items.length?Math.round(gr.items.reduce(function(a,p){return a+(p.Avance||0);},0)/gr.items.length):0;
+        body+='<h2>'+esc(gr.name)+' <span style="font-weight:400;color:#64748b;font-size:12px">('+gr.items.length+' proyecto(s) · '+ga+'% avance)</span></h2>'; }
+      body+=tableHTML(gr.items);
+    });
+    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Resumen_Proyectos</title><style>'+
+      'body{font-family:Segoe UI,Arial,sans-serif;color:#1e293b;margin:28px;font-size:12px}'+
+      'h1{font-size:20px;margin:0 0 2px}h2{font-size:14px;margin:18px 0 6px;color:#6d28d9}'+
+      '.meta{color:#64748b;font-size:12px;margin-bottom:14px}'+
+      '.kpis{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 8px}'+
+      '.k{border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;min-width:110px}'+
+      '.k .n{font-size:20px;font-weight:800}.k .l{font-size:11px;color:#64748b;margin-top:2px}'+
+      'table{border-collapse:collapse;width:100%;margin-bottom:10px}'+
+      'th,td{border:1px solid #cbd5e1;padding:5px 8px;text-align:left;vertical-align:middle;font-size:11.5px}'+
+      'th{background:#f1f5f9;font-weight:700}@media print{body{margin:12mm}}</style></head><body>'+
+      '<h1>Resumen ejecutivo de proyectos</h1>'+
+      '<div class="meta">RQ-IT · Sigosa — '+today()+'<br>'+esc(ctxLabel())+'</div>'+
+      '<div class="kpis">'+kpi(k.n,'Proyectos')+kpi(k.activos,'Activos','#4f46e5')+kpi(k.avg+'%','Avance promedio','#6d28d9')+kpi(k.tareas,'Tareas')+kpi(k.hitos,'Hitos')+kpi(k.clientes,'Clientes')+'</div>'+
+      body+'</body></html>';
+  }
+  function downloadPdf(){
+    var ifr=document.createElement('iframe');
+    ifr.style.position='fixed';ifr.style.right='0';ifr.style.bottom='0';ifr.style.width='0';ifr.style.height='0';ifr.style.border='0';
+    document.body.appendChild(ifr);
+    var doc=ifr.contentWindow.document; doc.open(); doc.write(buildSummaryHTML()); doc.close();
+    ifr.contentWindow.focus();
+    setTimeout(function(){ ifr.contentWindow.print(); setTimeout(function(){ document.body.removeChild(ifr); },1000); },400);
+  }
+  function mailSummary(){
+    var items=filteredItems(), k=kpisOf(items), L=[];
+    L.push('Resumen ejecutivo de proyectos — RQ-IT ('+today()+')');
+    L.push(ctxLabel());
+    L.push('');
+    L.push('Proyectos: '+k.n+'  |  Activos: '+k.activos+'  |  Avance promedio: '+k.avg+'%  |  Tareas: '+k.tareas+'  |  Hitos: '+k.hitos+'  |  Clientes: '+k.clientes);
+    L.push('');
+    grouped(items).forEach(function(gr){
+      if(gr.name!=null){ var ga=gr.items.length?Math.round(gr.items.reduce(function(a,p){return a+(p.Avance||0);},0)/gr.items.length):0;
+        L.push('== '+gr.name+' ('+gr.items.length+' · '+ga+'%) =='); }
+      gr.items.forEach(function(p){
+        var av=Math.round(p.Avance||0);
+        var ini=p.FechaInicio||p.TareaMin, fin=p.FechaFin||p.TareaMax;
+        L.push('- '+p.Nombre+' ['+(p.Tipo||'—')+' / '+(p.Cliente||'—')+'] · '+(p.Estado||'—')+' · '+av+'% · '+(p.Responsable||'sin responsable')+' · '+(ini?fmt(ini):'—')+'→'+(fin?fmt(fin):'—'));
+      });
+      L.push('');
+    });
+    L.push('Portal: '+location.origin+'/proyectos.html');
+    var subject='Resumen ejecutivo de proyectos — '+today();
+    window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(L.join('\r\n'));
   }
 
   fetch('/api/proyectos?resumen=1').then(function(r){ if(r.status===401){ location.href='/.auth/login/aad'; return null; } return r.json(); }).then(function(d){
@@ -179,6 +284,8 @@
   });
   document.getElementById('fTipo').addEventListener('change', render);
   document.getElementById('fCliente').addEventListener('change', render);
+  document.getElementById('btnPdf').addEventListener('click', function(){ if(ITEMS.length) downloadPdf(); });
+  document.getElementById('btnMail').addEventListener('click', function(){ if(ITEMS.length) mailSummary(); });
 })();
 </script>
 </body>
