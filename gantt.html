@@ -189,6 +189,8 @@
       </div>
       <label class="f">Estado</label>
       <select id="p_estado"><option>Activo</option><option>En pausa</option><option>Completado</option><option>Cancelado</option></select>
+      <label class="f">Motivo del estado <span style="font-weight:400;color:var(--muted)">(si está En pausa / Cancelado, ej. "En espera de procura")</span></label>
+      <input type="text" id="p_motivo" placeholder="Motivo / nota del estado">
       <label class="f">Descripción</label>
       <textarea id="p_desc" rows="3" placeholder="Descripción / objetivo"></textarea>
       <div class="status" id="projStatus" style="margin-top:10px"></div>
@@ -528,7 +530,7 @@
     el('p_id').value=p?p.Id:''; el('p_nombre').value=p?p.Nombre:''; el('p_responsable').value=p?(p.Responsable||''):'';
     el('p_inicio').value=p&&p.FechaInicio?fmt(parseD(p.FechaInicio)):''; el('p_fin').value=p&&p.FechaFin?fmt(parseD(p.FechaFin)):'';
     el('p_estado').value=p?(p.Estado||'Activo'):'Activo'; el('p_desc').value=p?(p.Descripcion||''):'';
-    el('p_tipo').value=p?(p.Tipo||''):''; el('p_cliente').value=p?(p.Cliente||''):'';
+    el('p_tipo').value=p?(p.Tipo||''):''; el('p_cliente').value=p?(p.Cliente||''):''; el('p_motivo').value=p?(p.MotivoEstado||''):'';
     el('btnDeleteProj').style.display = p?'inline-block':'none';
     el('projStatus').textContent=''; openModal('projModal');
   }
@@ -547,7 +549,7 @@
   el('btnSaveProj').addEventListener('click', function(){
     var id=el('p_id').value, nombre=el('p_nombre').value.trim();
     if(!nombre){ el('projStatus').textContent='El nombre es obligatorio.'; el('projStatus').className='status err'; return; }
-    var body={ nombre:nombre, responsable:el('p_responsable').value.trim(), fechaInicio:el('p_inicio').value||null, fechaFin:el('p_fin').value||null, estado:el('p_estado').value, descripcion:el('p_desc').value.trim(), tipo:el('p_tipo').value.trim(), cliente:el('p_cliente').value.trim() };
+    var body={ nombre:nombre, responsable:el('p_responsable').value.trim(), fechaInicio:el('p_inicio').value||null, fechaFin:el('p_fin').value||null, estado:el('p_estado').value, descripcion:el('p_desc').value.trim(), tipo:el('p_tipo').value.trim(), cliente:el('p_cliente').value.trim(), motivoEstado:el('p_motivo').value.trim() };
     el('projStatus').textContent='Guardando…'; el('projStatus').className='status';
     var url=id?(P_API+'/'+id):P_API, method=id?'PATCH':'POST';
     fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})

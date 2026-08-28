@@ -68,6 +68,14 @@
   .btn:hover{background:var(--brand-soft);color:var(--brand-2)}
   .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
   .btn.primary:hover{background:var(--brand-2)}
+  .pcard{cursor:pointer}
+  .motivorow{margin:-4px 0 10px}
+  .motivo{color:#b45309;background:rgba(217,119,6,.16);padding:2px 9px;border-radius:6px;font-weight:600;font-size:12px}
+  .cardfoot{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+  .cardfoot label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .estSel{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font-size:12.5px;font-family:inherit;cursor:pointer}
+  .cardfoot .open{margin-left:auto;font-size:12px;color:var(--brand-2);text-decoration:none;font-weight:700}
+  .cardfoot .open:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -113,6 +121,7 @@
   var EST={ "Activo":["#4f46e5","rgba(79,70,229,.14)"],"En pausa":["#b45309","rgba(217,119,6,.16)"],
     "Completado":["#047857","rgba(4,120,87,.16)"],"Cancelado":["#b91c1c","rgba(220,38,38,.16)"] };
   var TIPO={ "CCTV":["#2563eb","#dbeafe"],"IT":["#7c3aed","#ede9fe"],"IA":["#0d9488","#ccfbf1"] };
+  var ESTADOS=["Activo","En pausa","Completado","Cancelado"];
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function estColor(e){ return EST[e]||["#475569","rgba(100,116,139,.14)"]; }
   function pill(e){ var c=estColor(e); return '<span class="pill" style="color:'+c[0]+';background:'+c[1]+'"><span class="d" style="background:'+c[0]+'"></span>'+esc(e||'—')+'</span>'; }
@@ -121,16 +130,20 @@
 
   var ITEMS=[], groupBy='none';
 
+  function hasMotivo(p){ return p.MotivoEstado && (p.Estado==='En pausa' || p.Estado==='Cancelado'); }
   function card(p){
     var av=Math.round(p.Avance||0);
     var ini=p.FechaInicio||p.TareaMin, fin=p.FechaFin||p.TareaMax;
     var rango=(ini?fmt(ini):'—')+' → '+(fin?fmt(fin):'—');
-    return '<a class="pcard" href="/gantt.html?proyecto='+p.Id+'">'+
+    var opts=ESTADOS.map(function(e){ return '<option'+(e===p.Estado?' selected':'')+'>'+esc(e)+'</option>'; }).join('');
+    return '<div class="pcard" data-id="'+p.Id+'">'+
       '<h3>'+esc(p.Nombre)+'</h3>'+
       '<div class="sub">'+pill(p.Estado)+tipoChip(p.Tipo)+(p.Cliente?('<span class="cli">'+esc(p.Cliente)+'</span>'):'')+'<span>'+esc(p.Responsable||'—')+'</span></div>'+
+      (hasMotivo(p)?('<div class="motivorow"><span class="motivo">'+esc(p.MotivoEstado)+'</span></div>'):'')+
       '<div class="prow"><div class="bar" style="flex:1"><i style="width:'+av+'%"></i></div><span class="pct">'+av+'%</span></div>'+
       '<div class="metrics"><span><b>'+(p.Tareas||0)+'</b> tareas</span><span><b>'+(p.Hitos||0)+'</b> hitos</span><span>'+esc(rango)+'</span></div>'+
-    '</a>';
+      '<div class="cardfoot"><label>Estado</label><select class="estSel">'+opts+'</select><a class="open" href="/gantt.html?proyecto='+p.Id+'">Abrir Gantt →</a></div>'+
+    '</div>';
   }
   function groupHeader(name, list){
     var av = list.length ? Math.round(list.reduce(function(a,p){return a+(p.Avance||0);},0)/list.length) : 0;
@@ -158,6 +171,15 @@
       clientes:(function(){var c={};items.forEach(function(p){if(p.Cliente)c[p.Cliente]=1;});return Object.keys(c).length;})()
     };
   }
+  function renderKpis(){
+    var k=kpisOf(ITEMS);
+    document.getElementById('kpis').innerHTML=
+      '<div class="kpi"><div class="n">'+k.n+'</div><div class="l">Proyectos</div></div>'+
+      '<div class="kpi"><div class="n" style="color:#4f46e5">'+k.activos+'</div><div class="l">Activos</div></div>'+
+      '<div class="kpi"><div class="n" style="color:#6d28d9">'+k.avg+'%</div><div class="l">Avance promedio</div></div>'+
+      '<div class="kpi"><div class="n">'+k.tareas+'</div><div class="l">Tareas</div></div>'+
+      '<div class="kpi"><div class="n">'+k.clientes+'</div><div class="l">Clientes</div></div>';
+  }
   function grouped(items){
     if(groupBy==='none') return [{name:null, items:items}];
     var key=groupBy, g={}, order=[];
@@ -172,6 +194,7 @@
 
   function render(){
     var cards=document.getElementById('cards');
+    renderKpis();
     var items=filteredItems();
     if(!items.length){ cards.innerHTML='<div class="state">No hay proyectos que coincidan con el filtro.</div>'; return; }
     if(groupBy==='none'){ cards.innerHTML='<div class="cards">'+items.map(card).join('')+'</div>'; return; }
@@ -188,7 +211,7 @@
       '<td>'+esc(p.Nombre)+'</td>'+
       '<td>'+esc(p.Tipo||'—')+'</td>'+
       '<td>'+esc(p.Cliente||'—')+'</td>'+
-      '<td>'+esc(p.Estado||'—')+'</td>'+
+      '<td>'+esc(p.Estado||'—')+(hasMotivo(p)?(' <small style="color:#b45309">('+esc(p.MotivoEstado)+')</small>'):'')+'</td>'+
       '<td style="min-width:120px">'+pctCell(av)+'</td>'+
       '<td>'+esc(p.Responsable||'—')+'</td>'+
       '<td>'+(ini?fmt(ini):'—')+' → '+(fin?fmt(fin):'—')+'</td>'+
@@ -245,7 +268,7 @@
       gr.items.forEach(function(p){
         var av=Math.round(p.Avance||0);
         var ini=p.FechaInicio||p.TareaMin, fin=p.FechaFin||p.TareaMax;
-        L.push('- '+p.Nombre+' ['+(p.Tipo||'—')+' / '+(p.Cliente||'—')+'] · '+(p.Estado||'—')+' · '+av+'% · '+(p.Responsable||'sin responsable')+' · '+(ini?fmt(ini):'—')+'→'+(fin?fmt(fin):'—'));
+        L.push('- '+p.Nombre+' ['+(p.Tipo||'—')+' / '+(p.Cliente||'—')+'] · '+(p.Estado||'—')+(hasMotivo(p)?(' ('+p.MotivoEstado+')'):'')+' · '+av+'% · '+(p.Responsable||'sin responsable')+' · '+(ini?fmt(ini):'—')+'→'+(fin?fmt(fin):'—'));
       });
       L.push('');
     });
@@ -259,17 +282,9 @@
     if(!d) return;
     if(!d.ok){ document.getElementById('kpis').innerHTML=''; cards.innerHTML='<div class="state err-txt">'+esc(d.error||'Error')+(d.debug?(' — '+esc(d.debug.message)):'')+'</div>'; return; }
     ITEMS=d.items||[];
-    var avg = ITEMS.length ? Math.round(ITEMS.reduce(function(a,p){return a+(p.Avance||0);},0)/ITEMS.length) : 0;
-    var activos=ITEMS.filter(function(p){return p.Estado==='Activo';}).length;
-    var tareas=ITEMS.reduce(function(a,p){return a+(p.Tareas||0);},0);
-    var clientes={}; ITEMS.forEach(function(p){ if(p.Cliente) clientes[p.Cliente]=1; });
-    document.getElementById('kpis').innerHTML=
-      '<div class="kpi"><div class="n">'+ITEMS.length+'</div><div class="l">Proyectos</div></div>'+
-      '<div class="kpi"><div class="n" style="color:#4f46e5">'+activos+'</div><div class="l">Activos</div></div>'+
-      '<div class="kpi"><div class="n" style="color:#6d28d9">'+avg+'%</div><div class="l">Avance promedio</div></div>'+
-      '<div class="kpi"><div class="n">'+tareas+'</div><div class="l">Tareas</div></div>'+
-      '<div class="kpi"><div class="n">'+Object.keys(clientes).length+'</div><div class="l">Clientes</div></div>';
+    renderKpis();
     if(!ITEMS.length){ cards.innerHTML='<div class="state">Aún no hay proyectos. Crea uno desde el cronograma (Gantt).</div>'; return; }
+    var clientes={}; ITEMS.forEach(function(p){ if(p.Cliente) clientes[p.Cliente]=1; });
     var tipos={}; ITEMS.forEach(function(p){ if(p.Tipo) tipos[p.Tipo]=1; });
     fillOptions(document.getElementById('fTipo'), Object.keys(tipos).sort(), '');
     fillOptions(document.getElementById('fCliente'), Object.keys(clientes).sort(), '');
@@ -286,6 +301,32 @@
   document.getElementById('fCliente').addEventListener('change', render);
   document.getElementById('btnPdf').addEventListener('click', function(){ if(ITEMS.length) downloadPdf(); });
   document.getElementById('btnMail').addEventListener('click', function(){ if(ITEMS.length) mailSummary(); });
+
+  /* Abrir Gantt al hacer clic en la tarjeta (excepto en los controles de estado) */
+  var cardsEl=document.getElementById('cards');
+  cardsEl.addEventListener('click', function(e){
+    if(e.target.closest('.cardfoot')) return;
+    var c=e.target.closest('.pcard'); if(!c) return;
+    location.href='/gantt.html?proyecto='+c.getAttribute('data-id');
+  });
+  /* Cambiar estado (Completado / En pausa / Cancelado) con motivo, sin salir */
+  cardsEl.addEventListener('change', function(e){
+    var sel=e.target.closest('.estSel'); if(!sel) return;
+    var c=sel.closest('.pcard'); var id=+c.getAttribute('data-id');
+    var p=ITEMS.filter(function(x){return x.Id===id;})[0]; if(!p) return;
+    var nuevo=sel.value, prevE=p.Estado, prevM=p.MotivoEstado||'';
+    var motivo='';
+    if(nuevo==='En pausa' || nuevo==='Cancelado'){
+      motivo=window.prompt('Motivo ('+nuevo+'):', prevM || (nuevo==='En pausa'?'En espera de procura':''));
+      if(motivo===null){ sel.value=prevE; return; } // cancelado por el usuario
+      motivo=motivo.trim();
+    }
+    p.Estado=nuevo; p.MotivoEstado=motivo; render();
+    fetch('/api/proyectos/'+id, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({estado:nuevo, motivoEstado:motivo})})
+      .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok,d:d}; }); })
+      .then(function(res){ if(!(res.ok&&res.d&&res.d.ok)){ p.Estado=prevE; p.MotivoEstado=prevM; render(); alert('No se pudo actualizar el estado.'); } })
+      .catch(function(){ p.Estado=prevE; p.MotivoEstado=prevM; render(); alert('Sin conexión al actualizar.'); });
+  });
 })();
 </script>
 </body>
