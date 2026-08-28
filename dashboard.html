@@ -75,6 +75,22 @@
   .barlegend{display:flex;gap:16px;margin-top:6px;font-size:12px;color:var(--muted)}
   .barlegend .li{display:flex;align-items:center;gap:6px}
   .barlegend .sw{width:10px;height:10px;border-radius:3px}
+  /* Auditoría de accesos */
+  .audit-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:6px 0 16px}
+  .audit-kpis .ak{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .audit-kpis .ak .n{font-size:22px;font-weight:800;line-height:1}
+  .audit-kpis .ak .l{font-size:11.5px;color:var(--muted);margin-top:6px}
+  .audit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+  .mcard{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--bg)}
+  .mcard .mtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .mbadge{font-size:11px;font-weight:800;letter-spacing:.02em;padding:3px 9px;border-radius:6px}
+  .mcard .mtot{font-size:26px;font-weight:800;line-height:1}
+  .mcard .mtot small{font-size:11px;color:var(--muted);font-weight:600;margin-left:4px}
+  .mcard .mstats{display:flex;gap:16px;font-size:12px;color:var(--muted);margin:10px 0}
+  .mcard .mstats b{color:var(--ink);font-size:15px;display:block;font-weight:800}
+  .mcard .mbar{height:8px;background:var(--line);border-radius:999px;overflow:hidden}
+  .mcard .mbar>i{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:999px}
+  .mcard .mpct{font-size:11.5px;color:var(--muted);margin-top:6px;font-weight:600}
 
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
   .search{position:relative;flex:1;min-width:240px;max-width:420px}
@@ -250,12 +266,13 @@
 
   <div class="chart-card" id="auditCard" style="margin-bottom:18px">
     <h3>Auditoría de accesos por módulo</h3>
-    <p class="csub">Objetos de datos — Solicitados vs Aprobados vs Otorgados (por servicio)</p>
-    <div id="auditBars"><div class="state" style="padding:16px">Cargando…</div></div>
-    <div class="barlegend">
+    <p class="csub">Objetos de datos solicitados, aprobados y otorgados por servicio</p>
+    <div class="audit-kpis" id="auditKpis"></div>
+    <div class="audit-grid" id="auditGrid"><div class="state" style="padding:16px">Cargando…</div></div>
+    <div class="barlegend" style="margin-top:14px">
       <span class="li"><span class="sw" style="background:#64748b"></span>Solicitados</span>
       <span class="li"><span class="sw" style="background:var(--brand)"></span>Aprobados</span>
-      <span class="li"><span class="sw" style="background:var(--ok)"></span>Otorgados</span>
+      <span class="li"><span class="sw" style="background:var(--ok)"></span>Otorgados · la barra muestra % otorgado</span>
     </div>
   </div>
 
@@ -585,8 +602,11 @@
       document.getElementById('detailTitle').textContent = (d.item.Titulo||d.item.Aplicacion||('#'+d.item.Id));
       detailIt={ tipo: it._tipo, id: d.item.Id }; detailData=d.item; detailNotas=[]; detailDocs=[]; detailPase=null;
       d.item._objetos=d.objetos||[];
-      document.getElementById('detailBody').innerHTML=renderDetail(d.item)+paseUI()+docsUI()+notesUI();
-      bindPase(); loadPase(); bindDocs(); loadDocs(); bindNotas(); loadNotas();
+      // "Pase a Producción" solo aplica a despliegues (infra/erp/gen), no a Acceso a Datos.
+      var conPase = it._tipo!=='acceso';
+      document.getElementById('detailBody').innerHTML=renderDetail(d.item)+(conPase?paseUI():'')+docsUI()+notesUI();
+      if(conPase){ bindPase(); loadPase(); }
+      bindDocs(); loadDocs(); bindNotas(); loadNotas();
     }).catch(function(){ document.getElementById('detailBody').innerHTML='<div class="state err-txt">Error de red al cargar el detalle.</div>'; });
   }
   function paseSectionHTML(){
@@ -718,20 +738,38 @@
   }
 
   /* ---------- Auditoría de accesos por módulo ---------- */
-  function auditBar(v,max,color){ return '<div class="bar"><div class="track"><div class="fill" style="width:'+(max?(v/max*100):0)+'%;background:'+color+'"></div></div><span class="bv">'+v+'</span></div>'; }
+  var MOD_COLORS={ 'PLM':['#6d28d9','#ede9fe'],'MAESTRO':['#0f766e','#ccfbf1'],'FMS':['#b45309','#fef3c7'],
+    'CRM':['#be185d','#fce7f3'],'SRM':['#1d4ed8','#dbeafe'],'MRP':['#0369a1','#e0f2fe'],
+    'IMS':['#15803d','#dcfce7'],'POS':['#9333ea','#f3e8ff'],'SEG/AUD':['#475569','#e2e8f0'] };
+  function modColor(s){ return MOD_COLORS[s]||['#475569','#e2e8f0']; }
+  function ak(n,l,c){ return '<div class="ak"><div class="n"'+(c?(' style="color:'+c+'"'):'')+'>'+n+'</div><div class="l">'+esc(l)+'</div></div>'; }
   function renderAudit(){
-    var box=document.getElementById('auditBars'); if(!box) return;
+    var grid=document.getElementById('auditGrid'), kbox=document.getElementById('auditKpis'); if(!grid) return;
     fetch(API.acceso+'?resumen=modulos').then(function(r){ return r.ok?r.json():null; }).then(function(d){
-      if(!d||!d.ok){ box.innerHTML='<div class="state" style="padding:16px">Sin datos.</div>'; return; }
-      var items=d.items||[];
-      if(!items.length){ box.innerHTML='<div class="state" style="padding:16px">Aún no hay objetos de datos solicitados.</div>'; return; }
-      var max=1; items.forEach(function(it){ max=Math.max(max, it.Solicitados||0, it.Aprobados||0, it.Otorgados||0); });
-      box.innerHTML=items.map(function(it){
-        return '<div class="barrow"><div class="barlbl">'+esc(it.Service||'—')+'</div><div class="bars">'+
-          auditBar(it.Solicitados||0,max,'#64748b')+auditBar(it.Aprobados||0,max,'var(--brand)')+auditBar(it.Otorgados||0,max,'var(--ok)')+
-          '</div></div>';
+      if(!d||!d.ok){ if(kbox) kbox.innerHTML=''; grid.innerHTML='<div class="state" style="padding:16px">Sin datos.</div>'; return; }
+      var items=(d.items||[]).slice().sort(function(a,b){ return (b.Solicitados||0)-(a.Solicitados||0); });
+      if(!items.length){ if(kbox) kbox.innerHTML=''; grid.innerHTML='<div class="state" style="padding:16px">Aún no hay objetos de datos solicitados.</div>'; return; }
+      var tS=0,tA=0,tO=0; items.forEach(function(it){ tS+=it.Solicitados||0; tA+=it.Aprobados||0; tO+=it.Otorgados||0; });
+      var pct=tS?Math.round(tO/tS*100):0, pend=tS-tO;
+      if(kbox) kbox.innerHTML=
+        ak((DATA.acceso?DATA.acceso.length:0),'Solicitudes')+
+        ak(tS,'Objetos solicitados')+
+        ak(tA,'Aprobados','var(--brand)')+
+        ak(tO,'Otorgados','#16a34a')+
+        ak(pend,'Pendientes','#b45309')+
+        ak(pct+'%','% Otorgado','#16a34a')+
+        ak(items.length,'Módulos');
+      grid.innerHTML=items.map(function(it){
+        var s=it.Solicitados||0, a=it.Aprobados||0, o=it.Otorgados||0, p=s?Math.round(o/s*100):0, c=modColor(it.Service);
+        return '<div class="mcard">'+
+          '<div class="mtop"><span class="mbadge" style="color:'+c[0]+';background:'+c[1]+'">'+esc(it.Service||'—')+'</span>'+
+            '<span class="mtot">'+s+'<small>solic.</small></span></div>'+
+          '<div class="mstats"><span>Aprobados<b>'+a+'</b></span><span>Otorgados<b>'+o+'</b></span></div>'+
+          '<div class="mbar"><i style="width:'+p+'%"></i></div>'+
+          '<div class="mpct">'+p+'% otorgado</div>'+
+        '</div>';
       }).join('');
-    }).catch(function(){ box.innerHTML='<div class="state" style="padding:16px">Error al cargar la auditoría.</div>'; });
+    }).catch(function(){ if(kbox) kbox.innerHTML=''; grid.innerHTML='<div class="state" style="padding:16px">Error al cargar la auditoría.</div>'; });
   }
 
   /* ---------- Tabla ---------- */
