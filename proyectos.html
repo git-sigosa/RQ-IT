@@ -203,49 +203,76 @@
 
   /* -------- Resumen ejecutivo: PDF y correo -------- */
   function today(){ var d=new Date(); return d.toLocaleDateString('es'); }
-  function pctCell(av){ return '<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:7px;background:#e2e8f0;border-radius:6px;overflow:hidden"><div style="height:100%;width:'+av+'%;background:#6d28d9"></div></div><b>'+av+'%</b></div>'; }
+  function pctBar(av){
+    var col = av>=100?'#16a34a':(av>=50?'#6d28d9':(av>0?'#b45309':'#94a3b8'));
+    return '<div class="pcell"><div class="ptrack"><span style="width:'+av+'%;background:'+col+'"></span></div><b>'+av+'%</b></div>';
+  }
+  function estPillP(e){ var c=estColor(e); return '<span class="epill" style="color:'+c[0]+';background:'+c[1]+'">'+esc(e||'—')+'</span>'; }
+  function tipoChipP(t){ if(!t) return '<span class="muted">—</span>'; var c=TIPO[t]||['#475569','#eef2f7']; return '<span class="tchipp" style="color:'+c[0]+';background:'+c[1]+'">'+esc(t)+'</span>'; }
   function rowHTML(p){
     var av=Math.round(p.Avance||0);
     var ini=p.FechaInicio||p.TareaMin, fin=p.FechaFin||p.TareaMax;
     return '<tr>'+
-      '<td>'+esc(p.Nombre)+'</td>'+
-      '<td>'+esc(p.Tipo||'—')+'</td>'+
+      '<td class="pname">'+esc(p.Nombre)+'</td>'+
+      '<td>'+tipoChipP(p.Tipo)+'</td>'+
       '<td>'+esc(p.Cliente||'—')+'</td>'+
-      '<td>'+esc(p.Estado||'—')+(hasMotivo(p)?(' <small style="color:#b45309">('+esc(p.MotivoEstado)+')</small>'):'')+'</td>'+
-      '<td style="min-width:120px">'+pctCell(av)+'</td>'+
+      '<td>'+estPillP(p.Estado)+(hasMotivo(p)?('<div class="motivop">'+esc(p.MotivoEstado)+'</div>'):'')+'</td>'+
+      '<td class="wpct">'+pctBar(av)+'</td>'+
       '<td>'+esc(p.Responsable||'—')+'</td>'+
-      '<td>'+(ini?fmt(ini):'—')+' → '+(fin?fmt(fin):'—')+'</td>'+
-      '<td style="text-align:center">'+(p.Tareas||0)+'</td>'+
-      '<td style="text-align:center">'+(p.Hitos||0)+'</td>'+
+      '<td class="nowrap">'+(ini?fmt(ini):'—')+' → '+(fin?fmt(fin):'—')+'</td>'+
+      '<td class="ctr">'+(p.Tareas||0)+'</td>'+
+      '<td class="ctr">'+(p.Hitos||0)+'</td>'+
     '</tr>';
   }
   function tableHTML(list){
-    return '<table><thead><tr><th>Proyecto</th><th>Tipo</th><th>Cliente</th><th>Estado</th><th>Avance</th><th>Responsable</th><th>Periodo</th><th>Tareas</th><th>Hitos</th></tr></thead><tbody>'+
+    return '<table><thead><tr><th>Proyecto</th><th>Tipo</th><th>Cliente</th><th>Estado</th><th>Avance</th><th>Responsable</th><th>Periodo</th><th class="ctr">Tareas</th><th class="ctr">Hitos</th></tr></thead><tbody>'+
       list.map(rowHTML).join('')+'</tbody></table>';
   }
   function buildSummaryHTML(){
     var items=filteredItems(), k=kpisOf(items);
-    var kpi=function(n,l,c){ return '<div class="k"><div class="n"'+(c?(' style="color:'+c+'"'):'')+'>'+n+'</div><div class="l">'+l+'</div></div>'; };
+    var kpi=function(n,l,c){ return '<div class="k"><div class="n" style="color:'+(c||'#0f172a')+'">'+n+'</div><div class="l">'+esc(l)+'</div></div>'; };
     var body='';
     grouped(items).forEach(function(gr){
       if(gr.name!=null){ var ga=gr.items.length?Math.round(gr.items.reduce(function(a,p){return a+(p.Avance||0);},0)/gr.items.length):0;
-        body+='<h2>'+esc(gr.name)+' <span style="font-weight:400;color:#64748b;font-size:12px">('+gr.items.length+' proyecto(s) · '+ga+'% avance)</span></h2>'; }
+        body+='<div class="ghead"><span class="gdot"></span><span class="gtit">'+esc(gr.name)+'</span><span class="gmeta">'+gr.items.length+' proyecto(s) · '+ga+'% avance</span></div>'; }
       body+=tableHTML(gr.items);
     });
     return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Resumen_Proyectos</title><style>'+
-      'body{font-family:Segoe UI,Arial,sans-serif;color:#1e293b;margin:28px;font-size:12px}'+
-      'h1{font-size:20px;margin:0 0 2px}h2{font-size:14px;margin:18px 0 6px;color:#6d28d9}'+
-      '.meta{color:#64748b;font-size:12px;margin-bottom:14px}'+
-      '.kpis{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 8px}'+
-      '.k{border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;min-width:110px}'+
-      '.k .n{font-size:20px;font-weight:800}.k .l{font-size:11px;color:#64748b;margin-top:2px}'+
-      'table{border-collapse:collapse;width:100%;margin-bottom:10px}'+
-      'th,td{border:1px solid #cbd5e1;padding:5px 8px;text-align:left;vertical-align:middle;font-size:11.5px}'+
-      'th{background:#f1f5f9;font-weight:700}@media print{body{margin:12mm}}</style></head><body>'+
-      '<h1>Resumen ejecutivo de proyectos</h1>'+
-      '<div class="meta">RQ-IT · Sigosa — '+today()+'<br>'+esc(ctxLabel())+'</div>'+
-      '<div class="kpis">'+kpi(k.n,'Proyectos')+kpi(k.activos,'Activos','#4f46e5')+kpi(k.avg+'%','Avance promedio','#6d28d9')+kpi(k.tareas,'Tareas')+kpi(k.hitos,'Hitos')+kpi(k.clientes,'Clientes')+'</div>'+
-      body+'</body></html>';
+      '*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+      'body{font-family:Segoe UI,Inter,Arial,sans-serif;color:#0f172a;margin:0;font-size:12px}'+
+      '.page{padding:26px 30px}'+
+      '.hero{background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);color:#fff;border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:16px}'+
+      '.logo{width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex:none}'+
+      '.hero h1{font-size:21px;margin:0;font-weight:800;letter-spacing:-.01em}'+
+      '.hero .sub{opacity:.9;font-size:12.5px;margin-top:3px}'+
+      '.hero .ctx{margin-left:auto;text-align:right;font-size:11px;opacity:.92;max-width:280px}'+
+      '.kpis{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 8px}'+
+      '.k{flex:1;min-width:96px;border:1px solid #e6e8ef;border-radius:12px;padding:11px 14px;background:#fbfbfe}'+
+      '.k .n{font-size:22px;font-weight:800;line-height:1}.k .l{font-size:10.5px;color:#64748b;margin-top:5px;text-transform:uppercase;letter-spacing:.03em}'+
+      '.ghead{display:flex;align-items:center;gap:9px;margin:22px 0 8px}'+
+      '.gdot{width:9px;height:9px;border-radius:50%;background:#7c3aed}'+
+      '.gtit{font-size:14px;font-weight:800;color:#4c1d95}'+
+      '.gmeta{font-size:11px;color:#64748b;font-weight:600}'+
+      'table{border-collapse:separate;border-spacing:0;width:100%;margin-bottom:4px;border:1px solid #e6e8ef;border-radius:12px;overflow:hidden}'+
+      'th{background:#f5f3ff;color:#4c1d95;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;text-align:left;padding:8px 10px;border-bottom:1px solid #e6e8ef}'+
+      'td{padding:8px 10px;font-size:11.5px;border-bottom:1px solid #eef0f6;vertical-align:middle}'+
+      'tbody tr:nth-child(even){background:#fafaff}tbody tr:last-child td{border-bottom:none}'+
+      '.pname{font-weight:600;max-width:230px}'+
+      '.ctr{text-align:center}.nowrap{white-space:nowrap;color:#475569}.muted{color:#94a3b8}'+
+      '.epill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:700;white-space:nowrap}'+
+      '.tchipp{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:.02em}'+
+      '.motivop{color:#b45309;font-size:10px;margin-top:3px}'+
+      '.wpct{min-width:130px}'+
+      '.pcell{display:flex;align-items:center;gap:7px}.pcell b{font-size:11px;min-width:30px;text-align:right}'+
+      '.ptrack{flex:1;height:7px;background:#e9eaf2;border-radius:6px;overflow:hidden}.ptrack span{display:block;height:100%;border-radius:6px}'+
+      '.foot{margin-top:20px;padding-top:12px;border-top:1px solid #e6e8ef;color:#94a3b8;font-size:10.5px;display:flex;justify-content:space-between}'+
+      '@media print{.page{padding:0}@page{margin:12mm}.hero{border-radius:0}}'+
+      '</style></head><body><div class="page">'+
+      '<div class="hero"><div class="logo">RQ</div><div><h1>Resumen ejecutivo de proyectos</h1><div class="sub">RQ-IT · Sigosa — '+today()+'</div></div><div class="ctx">'+esc(ctxLabel())+'</div></div>'+
+      '<div class="kpis">'+kpi(k.n,'Proyectos')+kpi(k.activos,'Activos','#4f46e5')+kpi(k.avg+'%','Avance prom.','#6d28d9')+kpi(k.tareas,'Tareas')+kpi(k.hitos,'Hitos')+kpi(k.clientes,'Clientes','#0d9488')+'</div>'+
+      body+
+      '<div class="foot"><span>Generado desde el Dashboard de Proyectos · RQ-IT</span><span>'+esc(location.origin)+'/proyectos.html</span></div>'+
+      '</div></body></html>';
   }
   function downloadPdf(){
     var ifr=document.createElement('iframe');
