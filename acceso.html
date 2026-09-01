@@ -191,6 +191,7 @@
   "use strict";
   var API="/api/solicitudes-acceso";
   var lastModel=null;
+  var sending=false;   /* evita envíos duplicados por doble clic o reintento */
 
   /* Sesión: muestra quién está conectado y ajusta el menú */
   fetch('/.auth/me').then(function(r){return r.json();}).then(function(d){
@@ -350,6 +351,18 @@
     el.addEventListener('input', function(){ if(el.value&&el.value.trim()){ el.classList.remove('invalid'); var m=el.parentElement.querySelector('.err-msg'); if(m) m.classList.remove('show'); } });
   });
 
+  function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+  function resetAll(){
+    document.getElementById('accForm').reset();
+    SEL={}; objQuery=''; activeMod=''; lastModel=null;
+    renderMods(); afterSel();
+    document.getElementById('objErr').classList.remove('show');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-req]'), function(el){
+      el.classList.remove('invalid');
+      var m=el.parentElement.querySelector('.err-msg'); if(m) m.classList.remove('show');
+    });
+  }
+
   function buildModel(){
     return { solicitante:val('solicitante'), grupo:val('grupo'), usuario:val('usuario'), detalle_acceso:val('detalle'), estado:val('estado')||'Nuevo', objetos:selectedObjetos() };
   }
@@ -382,6 +395,7 @@
   }
 
   document.getElementById('btnReview').addEventListener('click', function(){
+    if(sending) return;
     var okReq=validate();
     var okObj=Object.keys(SEL).length>0;
     if(!okObj){ var oe=document.getElementById('objErr'); oe.classList.add('show'); if(okReq){ oe.scrollIntoView({behavior:'smooth',block:'center'}); } }
@@ -391,28 +405,46 @@
     document.getElementById('modal').classList.add('show');
     setStatus('Solicitud lista. Revísala y pulsa Enviar.', 'ok');
   });
-  document.getElementById('btnPdf').addEventListener('click', function(){ if(lastModel) downloadPdf(lastModel); });
+  document.getElementById('btnPdf').addEventListener('click', function(){ if(lastModel && !sending) downloadPdf(lastModel); });
   document.getElementById('btnEnviar').addEventListener('click', function(){
-    var st=document.getElementById('modalStatus');
+    var st=document.getElementById('modalStatus'), btn=this, pdf=document.getElementById('btnPdf'), x=document.getElementById('closeModal');
     function onStatus(msg,cls){ st.textContent=msg; st.className='status'+(cls?(' '+cls):''); }
+    function unlock(){ sending=false; btn.disabled=false; pdf.disabled=false; x.disabled=false; btn.textContent='Enviar Solicitud'; }
+    if(sending) return;                                   /* ya hay un envío en curso */
     if(!lastModel){ onStatus('Revisa la solicitud primero.', 'err'); return; }
+    sending=true; btn.disabled=true; pdf.disabled=true; x.disabled=true; btn.textContent='Enviando…';
     onStatus('Guardando…','');
-    resolveGrupoId(lastModel.grupo).then(function(gid){ lastModel.grupo_id=gid;
-      return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:lastModel})});
+    var enviado=lastModel;                                /* fija el modelo de este envío */
+    resolveGrupoId(enviado.grupo).then(function(gid){ enviado.grupo_id=gid;
+      return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:enviado})});
     })
       .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok,d:d}; }); })
       .then(function(res){
-        if(res.ok && res.d && res.d.ok){ onStatus('✓ Solicitud enviada (Id '+(res.d.id!=null?res.d.id:'—')+').', 'ok'); loadGrupos(); }
-        else { onStatus('✗ '+((res.d&&res.d.error)||'Error al enviar'), 'err'); }
+        if(res.ok && res.d && res.d.ok){
+          var id=(res.d.id!=null?res.d.id:'—');
+          onStatus('✓ Solicitud enviada (Id '+id+').', 'ok');
+          lastModel=null;                                 /* sin modelo no se puede reenviar */
+          loadGrupos();
+          /* Se cierra la pantalla y se limpia todo: así no queda el botón vivo para un segundo envío. */
+          setTimeout(function(){
+            closeModal(); resetAll(); unlock();
+            st.textContent=''; st.className='status';
+            setStatus('✓ Solicitud enviada correctamente (Id '+id+'). Puedes registrar otra.', 'ok');
+          }, 900);
+        }
+        else { onStatus('✗ '+((res.d&&res.d.error)||'Error al enviar'), 'err'); unlock(); }
       })
-      .catch(function(){ onStatus('✗ No se pudo conectar con la API.', 'err'); });
+      .catch(function(){ onStatus('✗ No se pudo conectar con la API.', 'err'); unlock(); });
   });
-  document.getElementById('closeModal').addEventListener('click', function(){ document.getElementById('modal').classList.remove('show'); });
-  document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
+  document.getElementById('closeModal').addEventListener('click', function(){ if(!sending) closeModal(); });
+  document.getElementById('modal').addEventListener('click', function(e){ if(e.target===this && !sending) closeModal(); });
   document.getElementById('btnReset').addEventListener('click', function(){
+    if(sending) return;
     if(!confirm('¿Limpiar el formulario?')) return;
-    document.getElementById('accForm').reset(); SEL={}; objQuery=''; activeMod=''; renderMods(); afterSel(); setStatus('Formulario limpio.');
+    resetAll(); setStatus('Formulario limpio.');
   });
+  /* Enter en un campo no debe disparar un submit nativo (recargaría la página). */
+  document.getElementById('accForm').addEventListener('submit', function(e){ e.preventDefault(); });
 })();
 </script>
 </body>

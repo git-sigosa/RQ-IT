@@ -4,6 +4,7 @@
  * /api/solicitudes-acceso
  *   GET                      -> lista (filtros ?estado= &q=)
  *   GET ?resumen=modulos     -> auditoría por módulo { Service, Solicitados, Aprobados, Otorgados }
+ *   GET ?resumen=detalle     -> filas objeto x solicitud para la auditoría cruzada (módulo / persona / objeto)
  *   GET /{id}                -> detalle + objetos seleccionados
  *   POST                     -> crea solicitud + objetos de datos
  *   PATCH /{id}              -> actualiza seguimiento (Estado / Responsable / FechaEntrega)
@@ -88,6 +89,24 @@ async function handleResumenModulos(context, req, respond) {
   } catch (err) {
     context.log.error('Acceso resumen error: ' + err.message);
     return respond(500, { ok: false, error: 'No se pudo consultar el resumen por módulo.', debug: { message: err.message } });
+  }
+}
+
+/* Filas planas objeto x solicitud: la auditoría del dashboard arma el cruce módulo/persona/objeto en el cliente. */
+async function handleResumenDetalle(context, req, respond) {
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query(
+      'SELECT TOP 5000 o.SolicitudId, o.TableName, o.Service, ' +
+      's.Solicitante, s.Usuario, s.Grupo, s.Estado, s.Responsable, s.FechaRegistro ' +
+      'FROM dbo.SolicitudAccesoObjetos o ' +
+      'JOIN dbo.SolicitudesAcceso s ON s.Id = o.SolicitudId ' +
+      'ORDER BY o.SolicitudId DESC, o.Service, o.TableName'
+    );
+    return respond(200, { ok: true, items: result.recordset || [] });
+  } catch (err) {
+    context.log.error('Acceso detalle auditoría error: ' + err.message);
+    return respond(500, { ok: false, error: 'No se pudo consultar el detalle de auditoría.', debug: { message: err.message } });
   }
 }
 
@@ -186,7 +205,9 @@ module.exports = async function (context, req) {
   }
   const method = (req.method || 'POST').toUpperCase();
   if (method === 'GET') {
-    if (req.query && String(req.query.resumen || '').toLowerCase() === 'modulos') return await handleResumenModulos(context, req, respond);
+    const resumen = req.query ? String(req.query.resumen || '').toLowerCase() : '';
+    if (resumen === 'modulos') return await handleResumenModulos(context, req, respond);
+    if (resumen === 'detalle') return await handleResumenDetalle(context, req, respond);
     return (req.params && req.params.id) ? await handleGetOne(context, req, respond) : await handleList(context, req, respond);
   }
   if (method === 'PATCH') { return await handleUpdate(context, req, respond); }
