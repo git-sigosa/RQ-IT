@@ -29,6 +29,7 @@ En el **portal de Azure → tu Static Web App → Configuración → Variables d
 | `SQL_PASSWORD` | *(tu contraseña)*    | **Secreto** — configúralo solo en Azure |
 | `SQL_ENCRYPT`  | `true`               | Opcional. `false` si el server no usa TLS |
 | `SQL_TRUST_CERT` | `true`             | Opcional. `true` si el certificado es autofirmado |
+| `DUP_WINDOW_MIN` | `5`                | Opcional. Minutos de la ventana anti-duplicados de `/api/solicitudes-acceso`. `0` la desactiva |
 
 > Recomendado: da a `app.rq-it` solo permisos `INSERT` (y `SELECT` si luego consultas)
 > sobre `dbo.Solicitudes`, nada más.

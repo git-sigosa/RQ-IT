@@ -422,14 +422,18 @@
       .then(function(res){
         if(res.ok && res.d && res.d.ok){
           var id=(res.d.id!=null?res.d.id:'—');
-          onStatus('✓ Solicitud enviada (Id '+id+').', 'ok');
+          /* La API es idempotente: ante un reenvío devuelve el Id existente en vez de duplicar. */
+          var dup=!!res.d.duplicado;
+          onStatus(dup?('✓ Ya estaba registrada (Id '+id+'). No se creó una copia.')
+                      :('✓ Solicitud enviada (Id '+id+').'), 'ok');
           lastModel=null;                                 /* sin modelo no se puede reenviar */
           loadGrupos();
           /* Se cierra la pantalla y se limpia todo: así no queda el botón vivo para un segundo envío. */
           setTimeout(function(){
             closeModal(); resetAll(); unlock();
             st.textContent=''; st.className='status';
-            setStatus('✓ Solicitud enviada correctamente (Id '+id+'). Puedes registrar otra.', 'ok');
+            setStatus(dup?('✓ Esta solicitud ya estaba registrada (Id '+id+'), no se duplicó. Puedes registrar otra.')
+                         :('✓ Solicitud enviada correctamente (Id '+id+'). Puedes registrar otra.'), 'ok');
           }, 900);
         }
         else { onStatus('✗ '+((res.d&&res.d.error)||'Error al enviar'), 'err'); unlock(); }

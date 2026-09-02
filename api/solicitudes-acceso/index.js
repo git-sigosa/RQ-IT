@@ -7,6 +7,8 @@
  *   GET ?resumen=detalle     -> filas objeto x solicitud para la auditoría cruzada (módulo / persona / objeto)
  *   GET /{id}                -> detalle + objetos seleccionados
  *   POST                     -> crea solicitud + objetos de datos
+ *                              (idempotente: reenviar la misma solicitud dentro de la
+ *                               ventana DUP_WINDOW_MIN devuelve el Id existente)
  *   PATCH /{id}              -> actualiza seguimiento (Estado / Responsable / FechaEntrega)
  */
 
@@ -27,6 +29,14 @@ const config = {
   requestTimeout: 20000
 };
 
+/* Ventana anti-duplicados: un POST identico dentro de estos minutos no crea otra fila.
+   El arreglo del formulario (cerrar el modal al enviar) solo cubre el navegador; esto cubre
+   reintentos de red, otra pestana o cualquier otro cliente. 0 desactiva la guarda. */
+const DUP_WINDOW_MIN = (function () {
+  const n = parseInt(process.env.DUP_WINDOW_MIN || '5', 10);
+  return isNaN(n) || n < 0 ? 5 : n;
+})();
+
 let poolPromise = null;
 function getPool() { if (!poolPromise) { poolPromise = sql.connect(config).catch(function (e) { poolPromise = null; throw e; }); } return poolPromise; }
 function str(v, max) { if (v == null) return null; var s = String(v).trim(); if (!s) return null; return max ? s.slice(0, max) : s; }
@@ -46,6 +56,14 @@ function normObjetos(list) {
     out.push({ tableName: tn, service: sv });
   }
   return out;
+}
+
+/* Firma estable del conjunto de objetos, para comparar dos solicitudes sin depender del orden. */
+function firmaObjetos(list) {
+  return (list || [])
+    .map(function (o) { return String(o.tableName || '').toLowerCase(); })
+    .sort()
+    .join('|');
 }
 
 async function handleList(context, req, respond) {
@@ -166,6 +184,49 @@ async function handleCreate(context, req, respond) {
   const tx = new sql.Transaction(pool);
   try {
     await tx.begin();
+
+    /* --- Guarda anti-duplicados ---------------------------------------------
+       Busca una solicitud con la misma cabecera dentro de la ventana y compara
+       su conjunto de objetos. UPDLOCK/HOLDLOCK bloquea el rango durante la
+       transaccion, asi que dos POST simultaneos identicos se serializan y solo
+       el primero inserta.                                                     */
+    if (DUP_WINDOW_MIN > 0) {
+      const rd = new sql.Request(tx);
+      rd.input('Solicitante', sql.NVarChar(200), solicitante);
+      rd.input('Grupo', sql.NVarChar(200), grupo);
+      rd.input('Usuario', sql.NVarChar(200), usuario || '');
+      rd.input('Detalle', sql.NVarChar(sql.MAX), str(model.detalle_acceso) || '');
+      rd.input('Ventana', sql.Int, DUP_WINDOW_MIN);
+      const cand = await rd.query(
+        'SELECT TOP 5 Id FROM dbo.SolicitudesAcceso WITH (UPDLOCK, HOLDLOCK) ' +
+        'WHERE Solicitante = @Solicitante ' +
+        "AND ISNULL(Grupo, N'') = @Grupo " +
+        "AND ISNULL(Usuario, N'') = @Usuario " +
+        "AND ISNULL(DetalleAcceso, N'') = @Detalle " +
+        'AND FechaRegistro >= DATEADD(MINUTE, -@Ventana, SYSUTCDATETIME()) ' +
+        'ORDER BY Id DESC'
+      );
+      const firmaNueva = firmaObjetos(objetos);
+      const filas = (cand.recordset || []);
+      for (let c = 0; c < filas.length; c++) {
+        const rc = new sql.Request(tx);
+        rc.input('Id', sql.Int, filas[c].Id);
+        const objs = await rc.query('SELECT TableName FROM dbo.SolicitudAccesoObjetos WHERE SolicitudId = @Id');
+        const firmaVieja = firmaObjetos((objs.recordset || []).map(function (x) { return { tableName: x.TableName }; }));
+        if (firmaVieja === firmaNueva) {
+          await tx.rollback();
+          context.log('Acceso create: duplicado descartado, ya existe Id ' + filas[c].Id);
+          return respond(200, {
+            ok: true, id: filas[c].Id, objetos: objetos.length,
+            duplicado: true,
+            error: null,
+            mensaje: 'Esta solicitud ya estaba registrada (Id ' + filas[c].Id + '). No se creó una copia.'
+          });
+        }
+      }
+    }
+    /* --- fin de la guarda --------------------------------------------------- */
+
     const r = new sql.Request(tx);
     r.input('Titulo', sql.NVarChar(300), titulo);
     r.input('Solicitante', sql.NVarChar(200), solicitante);
